@@ -3,15 +3,15 @@ pragma solidity ^0.8.12;
 
 interface ITokenFlipper {
     function flipToEUD(
-        uint256 amount,
+        address owner,
         address receiver,
-        address owner
+        uint256 amount
     ) external returns (uint256);
 
     function flipToEUI(
-        uint256 amount,
+        address owner,
         address receiver,
-        address owner
+        uint256 amount
     ) external returns (uint256);
 
     function fromEudToEui(uint256 eudAmount) external view returns (uint256);

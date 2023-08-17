@@ -19,19 +19,19 @@ import "./RoleControl.sol";
 contract TokenFlipper is Pausable, RoleControl {
     using Math for uint256;
     // event
-    event flippedToEUD(
+    event FlippedToEUD(
         address indexed account,
         uint256 euiAmount,
         uint256 eudAmount
     );
-    event flippedToEUI(
+    event FlippedToEUI(
         address indexed account,
         uint256 eudAmount,
         uint256 euiAmount
     );
-    IEUD private _eud;
-    IEUI private _eui;
-    IYieldOracle private _yieldOracle;
+    IEUD public eud;
+    IEUI public eui;
+    IYieldOracle public yieldOracle;
 
     /**
      * @notice  This modifier make sure the only address can call the function is eui contract
@@ -39,7 +39,7 @@ contract TokenFlipper is Pausable, RoleControl {
      */
     modifier onlyEUI() {
         require(
-            msg.sender == address(_eui),
+            msg.sender == address(eui),
             "Only EUI contract is allowed, you are "
         );
         _;
@@ -55,35 +55,8 @@ contract TokenFlipper is Pausable, RoleControl {
         address yieldOracleAddress,
         address accessControlAddress
     ) Pausable() {
-        _yieldOracle = IYieldOracle(yieldOracleAddress);
+        yieldOracle = IYieldOracle(yieldOracleAddress);
         __RoleControl_init(accessControlAddress);
-    }
-
-    /**
-     * @notice  This function is accessible for eveyone.
-     * @dev     Function to get the address of the EuroInvest (EUI) contract.
-     * @return  address  The address of the EuroInvest contract.
-     */
-    function getEUI() external view returns (address) {
-        return address(_eui);
-    }
-
-    /**
-     * @notice  This function is accessible for eveyone.
-     * @dev     Function to get the address of the EuroDollar (EUD) contract.
-     * @return  address  The address of the EuroDollar contract.
-     */
-    function getEUD() external view returns (address) {
-        return address(_eud);
-    }
-
-    /**
-     * @notice  This function is accessible for eveyone.
-     * @dev     Function to get the address of the oracle source contract (YieldOracle).
-     * @return  address  The address of the YieldOracle contract.
-     */
-    function getOracleSource() external view returns (address) {
-        return address(_yieldOracle);
     }
 
     // Pausable
@@ -115,7 +88,7 @@ contract TokenFlipper is Pausable, RoleControl {
     function updateOracleSource(
         address yieldOracleAddress
     ) external onlyRole(ADMIN_ROLE) {
-        _yieldOracle = IYieldOracle(yieldOracleAddress);
+        yieldOracle = IYieldOracle(yieldOracleAddress);
     }
 
     /**
@@ -124,7 +97,7 @@ contract TokenFlipper is Pausable, RoleControl {
      * @param   eudAddress  The address of the EuroDollar (EUD) contract.
      */
     function setEUD(address eudAddress) external onlyRole(ADMIN_ROLE) {
-        _eud = IEUD(eudAddress);
+        eud = IEUD(eudAddress);
     }
 
     /**
@@ -133,65 +106,7 @@ contract TokenFlipper is Pausable, RoleControl {
      * @param   euiAddress  The address of the EuroInvest (EUI) contract.
      */
     function setEUI(address euiAddress) external onlyRole(ADMIN_ROLE) {
-        _eui = IEUI(euiAddress);
-    }
-
-    /**
-     * @notice  This function will burn the specified amount of EUD tokens from the sender's account and mint the corresponding amount of EUI tokens to the sender's account.
-     * @notice  Emits `flippedToEUI` event to indicate the successful conversion.
-     * @dev     Function to flip a specified amount of EUD to EUI tokens.
-     * @param   amount  The amount of EUD tokens to be converted.
-     */
-    function flipToEUI(uint256 amount) external {
-        uint256 euiAmount = _flipToEUI(amount, msg.sender, msg.sender);
-        emit flippedToEUI(msg.sender, amount, euiAmount);
-    }
-
-    /**
-     * @notice  This function will burn the specified amount of EUI tokens from the sender's account and mint the corresponding amount of EUD tokens to the sender's account.
-     * @notice  Emits `flippedToEUD` event to indicate the successful conversion.
-     * @dev     Function to flip a specified amount of EUI to EUD tokens.
-     * @param   amount  The amount of EUI tokens to be converted.
-     */
-    function flipToEUD(uint256 amount) external {
-        uint256 eudAmount = _flipToEUD(amount, msg.sender, msg.sender);
-        emit flippedToEUD(msg.sender, amount, eudAmount);
-    }
-
-    /**
-     * @notice  This function can only be called by the EUI contract.
-     * @notice  This function will burn the specified amount of EUD tokens from the specified owner's account and mint the corresponding amount of EUI tokens to the specified receiver's account.
-     * @dev     Function to flip a specified amount of EUD to EUI tokens.
-     * @param   amount  The amount of EUD tokens to be converted.
-     * @param   receiver  The address where the newly minted EUI tokens will be transferred.
-     * @param   owner  The address of the EUI tokens owner (who will burn the EUD tokens).
-     * @return  uint256  The amount of EUI tokens that were minted to the specified receiver's account.
-     */
-    function flipToEUI(
-        uint256 amount,
-        address receiver,
-        address owner
-    ) external onlyEUI returns (uint256) {
-        uint256 euiAmount = _flipToEUI(amount, receiver, owner);
-        return euiAmount;
-    }
-
-    /**
-     * @notice  This function can only be called by the EUI contract.
-     * @notice  This function will burn the specified amount of EUI tokens from the specified owner's account and mint the corresponding amount of EUD tokens to the specified receiver's account.
-     * @dev     Function to flip a specified amount of EUI to EUD tokens.
-     * @param   amount  The amount of EUI tokens to be converted.
-     * @param   receiver  The address where the newly minted EUD tokens will be transferred.
-     * @param   owner  The address of the EUI tokens owner (who will burn the EUI tokens).
-     * @return  uint256  The amount of EUD tokens that were minted to the specified receiver's account.
-     */
-    function flipToEUD(
-        uint256 amount,
-        address receiver,
-        address owner
-    ) external onlyEUI returns (uint256) {
-        uint256 eudAmount = _flipToEUD(amount, receiver, owner);
-        return eudAmount;
+        eui = IEUI(euiAddress);
     }
 
     /**
@@ -201,10 +116,10 @@ contract TokenFlipper is Pausable, RoleControl {
      * @return  uint256  The equivalent amount of EUI tokens based on the current price from the yield oracle.
      */
     function fromEudToEui(uint256 eudAmount) public view returns (uint256) {
-        uint256 currentPrice = _yieldOracle.getPrice(_yieldOracle.epoch());
+        uint256 currentPrice = yieldOracle.currentPrice();
         return
             eudAmount.mulDiv(
-                10 ** _eui.decimals(),
+                10 ** eui.decimals(),
                 currentPrice,
                 Math.Rounding.Down
             );
@@ -217,11 +132,11 @@ contract TokenFlipper is Pausable, RoleControl {
      * @return  uint256  The equivalent amount of EUD tokens based on the previous epoch price from the yield oracle.
      */
     function fromEuiToEud(uint256 euiAmount) public view returns (uint256) {
-        uint256 currentPrice = _yieldOracle.getPrice(_yieldOracle.epoch() - 1);
+        uint256 currentPrice = yieldOracle.oldPrice();
         return
             euiAmount.mulDiv(
                 currentPrice,
-                10 ** _eui.decimals(),
+                10 ** eui.decimals(),
                 Math.Rounding.Down
             );
     }
@@ -234,14 +149,15 @@ contract TokenFlipper is Pausable, RoleControl {
      * @param   owner  The address from which the EUD tokens will be burned.
      * @return  uint256  The equivalent amount of EUI tokens based on the current epoch price from the yield oracle.
      */
-    function _flipToEUI(
-        uint256 amount,
+    function flipToEUI(
+        address owner,
         address receiver,
-        address owner
-    ) internal whenNotPaused returns (uint256) {
+        uint256 amount
+    ) external whenNotPaused returns (uint256) {
         uint256 euiMintAmount = fromEudToEui(amount);
-        _eud.burn(owner, amount);
-        _eui.mint(receiver, euiMintAmount);
+        require(eud.transferFrom(owner, address(this), amount), "EUD transfer failed");
+        eud.burn(address(this), amount);
+        eui.mint(receiver, euiMintAmount);
         return euiMintAmount;
     }
 
@@ -253,14 +169,15 @@ contract TokenFlipper is Pausable, RoleControl {
      * @param   owner  The address from which the EUI tokens will be burned.
      * @return  uint256  The equivalent amount of EUD tokens based on the previous epoch price from the yield oracle.
      */
-    function _flipToEUD(
-        uint256 amount,
+    function flipToEUD(
+        address owner,
         address receiver,
-        address owner
-    ) internal whenNotPaused returns (uint256) {
+        uint256 amount
+    ) external whenNotPaused returns (uint256) {
         uint256 eudMintAmount = fromEuiToEud(amount);
-        _eui.burn(owner, amount);
-        _eud.mint(receiver, eudMintAmount);
+        require(eui.transferFrom(owner, address(this), amount), "EUI transfer failed");
+        eui.burn(address(this), amount);
+        eud.mint(receiver, eudMintAmount);
         return eudMintAmount;
     }
 }

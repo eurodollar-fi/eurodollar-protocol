@@ -35,8 +35,8 @@ contract EUI is
      */
     modifier verified(address account) {
         require(
-            isAllowed(account) == true,
-            "Account is not allowed"
+            allowlist[account] == true,
+            "Account is not on Allowlist"
         );
         _;
     }

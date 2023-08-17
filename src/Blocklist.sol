@@ -12,11 +12,11 @@ import "./RoleControl.sol";
  * @dev     The contract also interacts with a sanctions list contract to handle special cases.
  */
 contract Blocklist is RoleControl {
-    mapping(address => bool) public _blocklist;
+    mapping(address => bool) public blocklist;
 
     // event
-    event addedToBlocklist(address indexed account);
-    event removedFromBlocklist(address indexed account);
+    event AddedToBlocklist(address indexed account);
+    event RemovedFromBlocklist(address indexed account);
 
     /**
      * @notice  This function is called internally to add an address to the blocklist.
@@ -26,9 +26,9 @@ contract Blocklist is RoleControl {
      * @param   account The address to be added to the blocklist.
      */
     function _addToBlocklist(address account) internal {
-        require(!_blocklist[account], "account is already in blocklist");
-        _blocklist[account] = true;
-        emit addedToBlocklist(account);
+        require(!blocklist[account], "account is already in blocklist");
+        blocklist[account] = true;
+        emit AddedToBlocklist(account);
     }
 
     /**
@@ -46,9 +46,9 @@ contract Blocklist is RoleControl {
     }
 
     function _removeFromBlocklist(address account) internal {
-        require(_blocklist[account], "account is not blocked");
-        _blocklist[account] = false;
-        emit removedFromBlocklist(account);
+        require(blocklist[account], "account is not blocked");
+        blocklist[account] = false;
+        emit RemovedFromBlocklist(account);
     }
 
     /**
@@ -65,15 +65,5 @@ contract Blocklist is RoleControl {
         for (uint256 i; i < accounts.length; i++) {
             _removeFromBlocklist(accounts[i]);
         }
-    }
-    /**
-     * @notice  This function allows querying the blocklist status of an address.
-     * @notice  It also takes into account whether the address is on the sanctions list to handle special cases.
-     * @dev     Checks if an address is on the blocklist.
-     * @param   account The address to be checked for blocklisting status.
-     * @return  bool A boolean value indicating whether the address is on the blocklist (true) or not (false).
-     */
-    function isBlocked(address account) public view returns (bool) {
-        return _blocklist[account];
     }
 }

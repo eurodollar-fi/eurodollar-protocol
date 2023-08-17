@@ -31,8 +31,8 @@ contract EUD is
      * @dev     Modifier to check if the given account is not blocked.
      * @param   account  The address to be checked for blocklisting.
      */
-    modifier blocked(address account) {
-        require(isBlocked(account) == false, "Account is blocked");
+    modifier notBlocked(address account) {
+        require(blocklist[account] == false, "Account is blocked");
         _;
     }
 
@@ -97,7 +97,7 @@ contract EUD is
     function mint(
         address to,
         uint256 amount
-    ) public onlyRole(MINT_ROLE) blocked(to) {
+    ) public onlyRole(MINT_ROLE) notBlocked(to) {
         _mint(to, amount);
     }
 
@@ -146,8 +146,8 @@ contract EUD is
     )
         public
         override
-        blocked(msg.sender)
-        blocked(to)
+        notBlocked(msg.sender)
+        notBlocked(to)
         returns (bool)
     {
         super.transfer(to, amount);
@@ -168,8 +168,8 @@ contract EUD is
     )
         public
         override
-        blocked(msg.sender)
-        blocked(spender)
+        notBlocked(msg.sender)
+        notBlocked(spender)
         returns (bool)
     {
         super.approve(spender, amount);
@@ -189,7 +189,7 @@ contract EUD is
         address from,
         address to,
         uint256 amount
-    ) public override blocked(from) blocked(to) returns (bool) {
+    ) public override notBlocked(from) notBlocked(to) returns (bool) {
         super.transferFrom(from, to, amount);
     }
 
@@ -208,8 +208,8 @@ contract EUD is
     )
         public
         override
-        blocked(msg.sender)
-        blocked(spender)
+        notBlocked(msg.sender)
+        notBlocked(spender)
         returns (bool)
     {
         super.increaseAllowance(spender, addedValue);
@@ -230,8 +230,8 @@ contract EUD is
     )
         public
         override
-        blocked(msg.sender)
-        blocked(spender)
+        notBlocked(msg.sender)
+        notBlocked(spender)
         returns (bool)
     {
         super.decreaseAllowance(spender, subtractedValue);
@@ -258,7 +258,7 @@ contract EUD is
         uint8 v,
         bytes32 r,
         bytes32 s
-    ) public override blocked(owner) blocked(spender) {
+    ) public override notBlocked(owner) notBlocked(spender) {
         super.permit(owner, spender, value, deadline, v, r, s);
     }
 

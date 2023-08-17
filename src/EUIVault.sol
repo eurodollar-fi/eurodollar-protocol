@@ -22,7 +22,7 @@ abstract contract EUIVault is
 {
     // Asset: EUD
     // Shares: EUI
-    address _asset;
+    address public asset;
     ITokenFlipper private _tokenFlipper;
 
     /**
@@ -35,17 +35,8 @@ abstract contract EUIVault is
         address assetAddress,
         address tokenFlipperAddress
     ) internal onlyInitializing {
-        _asset = assetAddress;
+        asset = assetAddress;
         _tokenFlipper = ITokenFlipper(tokenFlipperAddress);
-    }
-
-    /**
-     * @notice  This function is used to retrieve the address of the underlying EUD asset contract.
-     * @dev     Returns the address of the EUD asset contract associated with this EUIVault.
-     * @return  address  The address of the EUD asset contract.
-     */
-    function asset() public view virtual returns (address) {
-        return _asset;
     }
 
     /**
@@ -125,7 +116,7 @@ abstract contract EUIVault is
             assets <= maxDeposit(receiver),
             "ERC4626: deposit more than max"
         );
-        uint256 shares = _tokenFlipper.flipToEUI(assets, receiver, msg.sender);
+        uint256 shares = _tokenFlipper.flipToEUI(msg.sender, receiver, assets);
         emit Deposit(msg.sender, receiver, assets, shares);
         return shares;
     }
@@ -167,7 +158,7 @@ abstract contract EUIVault is
         address receiver
     ) public virtual returns (uint256) {
         require(shares <= maxMint(receiver), "ERC4626: mint more than max");
-        uint256 assets = _tokenFlipper.flipToEUD(shares, receiver, msg.sender);
+        uint256 assets = _tokenFlipper.flipToEUD(msg.sender, receiver, shares);
         return assets;
     }
 
@@ -222,7 +213,7 @@ abstract contract EUIVault is
         if (owner != msg.sender) {
             _spendAllowance(owner, msg.sender, sharesAmount);
         }
-        _tokenFlipper.flipToEUD(sharesAmount, receiver, owner);
+        _tokenFlipper.flipToEUD(owner, receiver, sharesAmount);
         return sharesAmount;
     }
 
@@ -272,7 +263,7 @@ abstract contract EUIVault is
         if (owner != msg.sender) {
             _spendAllowance(owner, msg.sender, shares);
         }
-        _tokenFlipper.flipToEUI(assetsAmount, receiver, owner);
+        _tokenFlipper.flipToEUI(owner, receiver, assetsAmount);
         return assetsAmount;
     }
 

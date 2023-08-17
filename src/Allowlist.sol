@@ -11,23 +11,23 @@ import "./RoleControl.sol";
  * @dev     The contract allows adding and removing addresses from the allowlist based on the `ALLOWLIST_ROLE`.
  */
 contract Allowlist is RoleControl {
-    mapping(address => bool) private _allowlist;
+    mapping(address => bool) public allowlist;
 
     // event
-    event addedToAllowlist(address indexed account);
-    event removedFromAllowlist(address indexed account);
+    event AddedToAllowlist(address indexed account);
+    event RemovedFromAllowlist(address indexed account);
 
     /**
      * @notice  This function is called internally to add an address to the allowlist.
      * @notice  The address must not be already on the allowlist.
-     * @notice  Emits an `addedToAllowlist` event upon successful addition.
+     * @notice  Emits an `AddedToAllowlist` event upon successful addition.
      * @dev     Internal function to add an address to the allowlist.
      * @param   account The address to be added to the allowlist.
      */
     function _addToAllowlist(address account) internal {
-        require(!_allowlist[account], "account is already in allowlist");
-        _allowlist[account] = true;
-        emit addedToAllowlist(account);
+        require(!allowlist[account], "account is already in allowlist");
+        allowlist[account] = true;
+        emit AddedToAllowlist(account);
     }
 
     function addToAllowlist(
@@ -39,15 +39,15 @@ contract Allowlist is RoleControl {
     }
 
     function _removeFromAllowlist(address account) internal {
-        require(_allowlist[account], "account is not in allowlist");
-        _allowlist[account] = false;
-        emit removedFromAllowlist(account);
+        require(allowlist[account], "account is not in allowlist");
+        allowlist[account] = false;
+        emit RemovedFromAllowlist(account);
     }
 
     /**
      * @notice  This function is accessible only to accounts with the `ALLOWLIST_ROLE`.
      * @notice  The address must be currently on the allowlist.
-     * @notice  Emits a `removedFromAllowlist` event upon successful removal.
+     * @notice  Emits a `RemovedFromAllowlist` event upon successful removal.
      * @dev     Allows the `ALLOWLIST_ROLE` to remove an address from the allowlist.
      * @param   accounts The address to be removed from the allowlist.
      */
@@ -57,15 +57,5 @@ contract Allowlist is RoleControl {
         for (uint256 i; i < accounts.length; i++) {
             _removeFromAllowlist(accounts[i]);
         }
-    }
-
-    /**
-     * @notice  This function allows querying the allowlist status of an address.
-     * @dev     Checks if an address is on the allowlist.
-     * @param   account The address to be checked for allowlisting status.
-     * @return  bool    A boolean value indicating whether the address is on the allowlist (true) or not (false).
-     */
-    function isAllowed(address account) public view returns (bool) {
-        return _allowlist[account];
     }
 }

@@ -11,29 +11,20 @@ import "./RoleControl.sol";
  * @dev     The oracle allows price updates based on the `ORACLE_ROLE` and pausing functionality using the `PAUSE_ROLE`.
  */
 contract YieldOracle is Pausable, RoleControl {
-    uint256 public epoch;
-    uint256 public price; // max price increase of EUD (compare with the previous epoch price) to buy 10^<EUI.decimals()> EUI
-    mapping(uint256 => uint256) private _epochToPrice; // how much EUD to buy 10^(EUI.decimals()) EUI
+    uint128 public oldPrice;
+    uint128 public currentPrice;
 
     /**
      * @notice  The constructor sets up the contract with the specified access control address, initial prices, and the maximum price increase.
      * @dev     Constructor to initialize the YieldOracle contract.
      * @param   accessControlAddress The address of the EuroDollarAccessControl contract for role-based access control.
-     * @param   priceEpoch0 The initial price for the first epoch (epoch 0).
-     * @param   priceEpoch1 The price for the second epoch (epoch 1).
-     * @param   price_ The maximum price increase allowed between epochs to buy EUI tokens.
      */
     constructor(
-        address accessControlAddress,
-        uint256 priceEpoch0,
-        uint256 priceEpoch1,
-        uint256 price_
+        address accessControlAddress
     ) Pausable() {
         __RoleControl_init(accessControlAddress);
-        _epochToPrice[epoch] = priceEpoch0;
-        epoch += 1;
-        _epochToPrice[epoch] = priceEpoch1;
-        price = price_;
+        oldPrice = 1e18;
+        currentPrice = 1e18;
     }
 
     // Pausable
@@ -58,16 +49,6 @@ contract YieldOracle is Pausable, RoleControl {
     }
 
     /**
-     * @notice  This function allows querying the price for a specific epoch.
-     * @dev     Function to get the price for a specific epoch.
-     * @param   epoch_  The epoch for which the price is queried.
-     * @return  uint256 The price for the given epoch to flip tokens.
-     */
-    function getPrice(uint256 epoch_) external view returns (uint256) {
-        return _epochToPrice[epoch_];
-    }
-
-    /**
      * @notice  This function is accessible only to accounts with the `ORACLE_ROLE`.
      * @notice  The new price must not exceed the allowed price increase compared to the previous epoch's price.
      * @notice  The new price must be greater than or equal to the previous epoch's price.
@@ -77,48 +58,10 @@ contract YieldOracle is Pausable, RoleControl {
      * @return  bool    A boolean indicating the success of the price update.
      */
     function updatePrice(
-        uint256 newPrice
+        uint128 newPrice
     ) external onlyRole(ORACLE_ROLE) whenNotPaused returns (bool) {
-        require(
-            newPrice - _epochToPrice[epoch] <= price,
-            "New price exceeds the allowed limit"
-        );
-        require(
-            newPrice >= _epochToPrice[epoch],
-            "New price must greater than next price"
-        );
-        epoch += 1;
-        _epochToPrice[epoch] = newPrice;
-        return true;
-    }
-
-    /**
-     * @notice  This function is accessible only to accounts with the `ADMIN_ROLE`.
-     * @notice  It allows overwriting the price for a specific epoch, which is useful for correcting data or manual adjustments.
-     * @notice  The target epoch must exist (less than or equal to the current epoch).
-     * @dev     Function to overwrite the price for a specific epoch.
-     * @param   targetEpoch The epoch for which the price will be overwritten.
-     * @param   newPrice The new price for the specified epoch.
-     */
-    function overwritePrice(
-        uint256 targetEpoch,
-        uint256 newPrice
-    ) external onlyRole(ADMIN_ROLE) {
-        require(targetEpoch <= epoch, "Epoch does not exist");
-        _epochToPrice[targetEpoch] = newPrice;
-    }
-
-    /**
-     * @notice  This function is accessible only to accounts with the `ADMIN_ROLE`.
-     * @notice  It allows setting the maximum price increase to prevent large fluctuations in price updates.
-     * @dev     Function to set the maximum price increase allowed between epochs.
-     * @param   newMaxPriceIncrease The new maximum price increase allowed in EUD.
-     * @return  bool    A boolean indicating the success of the update.
-     */
-    function setMaxPriceIncrease(
-        uint256 newMaxPriceIncrease
-    ) external onlyRole(ADMIN_ROLE) returns (bool) {
-        price = newMaxPriceIncrease;
+        oldPrice = currentPrice;
+        currentPrice = newPrice;
         return true;
     }
 }
