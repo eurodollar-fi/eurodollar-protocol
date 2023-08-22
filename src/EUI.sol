@@ -23,12 +23,11 @@ contract EUI is
     UUPSUpgradeable,
     AccessControlUpgradeable
 {
-    mapping(address => uint256) private _frozenBalances;
+    mapping(address => uint256) public frozenBalances;
 
     // Roles
     bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
     bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
-    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
     bytes32 public constant ALLOWLIST_ROLE = keccak256("ALLOWLIST_ROLE");
     bytes32 public constant FREEZER_ROLE = keccak256("FREEZER_ROLE");
@@ -167,6 +166,7 @@ contract EUI is
         returns (bool)
     {
         super.transfer(to, amount);
+        return true;
     }
 
     /**
@@ -189,6 +189,7 @@ contract EUI is
         returns (bool)
     {
         super.approve(spender, amount);
+        return true;
     }
 
     /**
@@ -213,6 +214,7 @@ contract EUI is
         returns (bool)
     {
         super.transferFrom(from, to, amount);
+        return true;
     }
 
     /**
@@ -235,6 +237,7 @@ contract EUI is
         returns (bool)
     {
         super.increaseAllowance(spender, addedValue);
+        return true;
     }
 
     /**
@@ -257,6 +260,7 @@ contract EUI is
         returns (bool)
     {
         super.decreaseAllowance(spender, subtractedValue);
+        return true;
     }
 
     // ERC1967
@@ -270,7 +274,7 @@ contract EUI is
      */
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(UPGRADER_ROLE) {}
+    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 
     /**
      * @notice  This function overrides the ERC20Permit `permit` function.
@@ -302,30 +306,34 @@ contract EUI is
         super.permit(owner, spender, value, deadline, v, r, s);
     }
 
-    function frozenBalanceOf(address account) public view returns (uint256) {
-        return _frozenBalances[account];
-    }
-
     function freeze(
         address from,
         address to,
         uint256 amount
-    ) external onlyRole(FREEZER_ROLE) {
+    )   external
+        onlyRole(FREEZER_ROLE)
+        returns (bool)
+    {
         _transfer(from, to, amount);
-        _frozenBalances[from] += amount;
+        frozenBalances[from] += amount;
+        return true;
     }
 
     function release(
         address from,
         address to,
         uint256 amount
-    ) external onlyRole(FREEZER_ROLE) {
+    )   external
+        onlyRole(FREEZER_ROLE)
+        returns (bool)
+    {
         require(
-            _frozenBalances[to] >= amount,
+            frozenBalances[to] >= amount,
             "Release amount exceeds balance"
         );
-        _frozenBalances[to] -= amount;
+        frozenBalances[to] -= amount;
         _transfer(from, to, amount);
+        return true;
     }
 
     // Allowlist

@@ -26,7 +26,6 @@ contract EUD is
     // Roles
     bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
     bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
-    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
     bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
     bytes32 public constant BLOCKLIST_ROLE = keccak256("BLOCKLIST_ROLE");
     bytes32 public constant FREEZER_ROLE = keccak256("FREEZER_ROLE");
@@ -156,6 +155,7 @@ contract EUD is
         returns (bool)
     {
         super.transfer(to, amount);
+        return true;
     }
 
     /**
@@ -178,6 +178,7 @@ contract EUD is
         returns (bool)
     {
         super.approve(spender, amount);
+        return true;
     }
 
     /**
@@ -196,6 +197,7 @@ contract EUD is
         uint256 amount
     ) public override notBlocked(from) notBlocked(to) returns (bool) {
         super.transferFrom(from, to, amount);
+        return true;
     }
 
     /**
@@ -218,6 +220,7 @@ contract EUD is
         returns (bool)
     {
         super.increaseAllowance(spender, addedValue);
+        return true;
     }
 
     /**
@@ -240,6 +243,7 @@ contract EUD is
         returns (bool)
     {
         super.decreaseAllowance(spender, subtractedValue);
+        return true;
     }
 
     /**
@@ -271,26 +275,34 @@ contract EUD is
         address from,
         address to,
         uint256 amount
-    ) external onlyRole(FREEZER_ROLE) {
+    )   external
+        onlyRole(FREEZER_ROLE)
+        returns (bool)
+    {
         _transfer(from, to, amount);
         frozenBalances[from] += amount;
+        return true;
     }
 
     function release(
         address from,
         address to,
         uint256 amount
-    ) external onlyRole(FREEZER_ROLE) {
+    )   external
+        onlyRole(FREEZER_ROLE)
+        returns (bool)
+    {
         require(
             frozenBalances[to] >= amount,
             "Release amount exceeds balance"
         );
         frozenBalances[to] -= amount;
         _transfer(from, to, amount);
+        return true;
     }
 
     // Blocklist
-        mapping(address => bool) public blocklist;
+    mapping(address => bool) public blocklist;
 
     // event
     event AddedToBlocklist(address indexed account);
@@ -348,7 +360,7 @@ contract EUD is
     // ERC1967
     /**
      * @notice  This function is called internally to authorize an upgrade.
-     * @notice  Only accounts with the `UPGRADER_ROLE` can call this function.
+     * @notice  Only accounts with the `DEFAULT_ADMIN_ROLE` can call this function.
      * @notice  This function is used to control access to contract upgrades.
      * @notice  The function does not perform any other action other than checking the role.
      * @dev     Internal function to authorize an upgrade to a new implementation.
@@ -356,5 +368,5 @@ contract EUD is
      */
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(UPGRADER_ROLE) {}
+    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 }
