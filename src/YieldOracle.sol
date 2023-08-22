@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 import "openzeppelin-contracts/contracts/security/Pausable.sol";
-import "./RoleControl.sol";
+import "openzeppelin-contracts/contracts/access/AccessControl.sol";
 
 /**
  * @author  Fenris
@@ -10,19 +10,23 @@ import "./RoleControl.sol";
  * @dev     The oracle provides price data to determine how much EuroDollar (EUD) is needed to flip to EUI tokens for each epoch.
  * @dev     The oracle allows price updates based on the `ORACLE_ROLE` and pausing functionality using the `PAUSE_ROLE`.
  */
-contract YieldOracle is Pausable, RoleControl {
+contract YieldOracle is Pausable, AccessControl {
     uint128 public oldPrice;
     uint128 public currentPrice;
+
+    // Roles
+    bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
+    bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
 
     /**
      * @notice  The constructor sets up the contract with the specified access control address, initial prices, and the maximum price increase.
      * @dev     Constructor to initialize the YieldOracle contract.
-     * @param   accessControlAddress The address of the EuroDollarAccessControl contract for role-based access control.
+     * @param   account The address of the EuroDollarAccessControl contract for role-based access control.
      */
     constructor(
-        address accessControlAddress
+        address account
     ) Pausable() {
-        __RoleControl_init(accessControlAddress);
+        _grantRole(DEFAULT_ADMIN_ROLE, account);
         oldPrice = 1e18;
         currentPrice = 1e18;
     }

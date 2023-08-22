@@ -2,7 +2,7 @@
 pragma solidity ^0.8.12;
 
 import "openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import "./RoleControl.sol";
+import "openzeppelin-contracts/contracts/access/AccessControl.sol";
 
 /**
  * @author  Fenris
@@ -11,7 +11,10 @@ import "./RoleControl.sol";
  * @dev     It inherits from ERC1967Proxy, which enables it to upgrade the implementation logic.
  * @dev     This contract is used to facilitate upgrades without changing the contract address.
  */
-contract TokenProxy is ERC1967Proxy, RoleControl {
+contract TokenProxy is ERC1967Proxy, AccessControl {
+
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+
     /**
      * @notice  The constructor is called once during deployment to set the initial implementation and data.
      * @dev     Constructor to initialize the proxy contract.
@@ -21,9 +24,9 @@ contract TokenProxy is ERC1967Proxy, RoleControl {
     constructor(
         address _logic,
         bytes memory _data,
-        address accessControlAddress
+        address account
     ) ERC1967Proxy(_logic, _data) {
-        __RoleControl_init(accessControlAddress);
+        _grantRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     /**

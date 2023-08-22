@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
+import "openzeppelin-contracts/contracts/access/AccessControl.sol";
 import "openzeppelin-contracts/contracts/security/Pausable.sol";
 import "openzeppelin-contracts/contracts/utils/math/Math.sol";
 import "../interfaces/IEUD.sol";
 import "../interfaces/IEUI.sol";
 import "../interfaces/IYieldOracle.sol";
-import "./RoleControl.sol";
+
 
 /**
  * @author  Fenris
@@ -16,7 +17,7 @@ import "./RoleControl.sol";
  * @dev     The contract is pausable to prevent certain functionalities in emergency situations.
  */
 
-contract TokenFlipper is Pausable, RoleControl {
+contract TokenFlipper is Pausable, AccessControl {
     using Math for uint256;
     // event
     event FlippedToEUD(
@@ -32,6 +33,15 @@ contract TokenFlipper is Pausable, RoleControl {
     IEUD public eud;
     IEUI public eui;
     IYieldOracle public yieldOracle;
+
+    // Roles
+    bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
+    bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
+    bytes32 public constant BLOCKLIST_ROLE = keccak256("BLOCKLIST_ROLE");
+    bytes32 public constant FREEZER_ROLE = keccak256("FREEZER_ROLE");
+    bytes32 public constant WITHDRAW_ROLE = keccak256("WITHDRAW_ROLE");
 
     /**
      * @notice  This modifier make sure the only address can call the function is eui contract
@@ -49,14 +59,13 @@ contract TokenFlipper is Pausable, RoleControl {
      * @notice  The constructor sets up the contract with the specified contract addresses and access control.
      * @dev     Constructor to initialize the TokenFlipper contract.
      * @param   yieldOracleAddress The address of the yield oracle contract used for pricing.
-     * @param   accessControlAddress The address of the EuroDollarAccessControl contract for role-based access control.
+     * @param   account The address of the EuroDollarAccessControl contract for role-based access control.
      */
     constructor(
-        address yieldOracleAddress,
-        address accessControlAddress
+        address yieldOracleAddress, address account
     ) Pausable() {
         yieldOracle = IYieldOracle(yieldOracleAddress);
-        __RoleControl_init(accessControlAddress);
+        _grantRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     // Pausable
@@ -87,7 +96,7 @@ contract TokenFlipper is Pausable, RoleControl {
      */
     function updateOracleSource(
         address yieldOracleAddress
-    ) external onlyRole(ADMIN_ROLE) {
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) {
         yieldOracle = IYieldOracle(yieldOracleAddress);
     }
 
@@ -96,7 +105,7 @@ contract TokenFlipper is Pausable, RoleControl {
      * @dev     Function to set the address of the EUD (EuroDollar) contract.
      * @param   eudAddress  The address of the EuroDollar (EUD) contract.
      */
-    function setEUD(address eudAddress) external onlyRole(ADMIN_ROLE) {
+    function setEUD(address eudAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
         eud = IEUD(eudAddress);
     }
 
@@ -105,7 +114,7 @@ contract TokenFlipper is Pausable, RoleControl {
      * @dev     Function to set the address of the EUI (EuroInvest) contract.
      * @param   euiAddress  The address of the EuroInvest (EUI) contract.
      */
-    function setEUI(address euiAddress) external onlyRole(ADMIN_ROLE) {
+    function setEUI(address euiAddress) external onlyRole(DEFAULT_ADMIN_ROLE) {
         eui = IEUI(euiAddress);
     }
 

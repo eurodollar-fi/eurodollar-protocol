@@ -5,8 +5,7 @@ import "openzeppelin-contracts-upgradeable/security/PausableUpgradeable.sol";
 import "openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 import "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "./Blocklist.sol";
-import "./RoleControl.sol";
+import "openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
 
 /**
  * @author  Fenris
@@ -18,12 +17,20 @@ import "./RoleControl.sol";
 contract EUD is
     Initializable,
     PausableUpgradeable,
-    RoleControl,
     ERC20PermitUpgradeable,
     UUPSUpgradeable,
-    Blocklist
+    AccessControlUpgradeable
 {
     mapping(address => uint256) public frozenBalances;
+
+    // Roles
+    bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
+    bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
+    bytes32 public constant BLOCKLIST_ROLE = keccak256("BLOCKLIST_ROLE");
+    bytes32 public constant FREEZER_ROLE = keccak256("FREEZER_ROLE");
+    bytes32 public constant WITHDRAW_ROLE = keccak256("WITHDRAW_ROLE");
 
     /**
      * @notice  The function using this modifier will only execute if the account is not blocked.
@@ -52,16 +59,14 @@ contract EUD is
      * @notice  It sets up the EUD token with essential features and permissions.
      * @notice  The contracts' addresses for blocklisting and access control are provided as parameters.
      * @dev     Initialization function to set up the EuroDollar (EUD) token contract.
-     * @param   accessControlAddress  The address of the Access Control contract.
      */
-    function initialize(
-        address accessControlAddress
+    function initialize(address account
     ) public initializer {
         __ERC20_init("EuroDollar", "EUD");
         __Pausable_init();
-        __RoleControl_init(accessControlAddress);
         __ERC20Permit_init("EuroDollar");
         __UUPSUpgradeable_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     // ERC20 Pausable
@@ -282,6 +287,62 @@ contract EUD is
         );
         frozenBalances[to] -= amount;
         _transfer(from, to, amount);
+    }
+
+    // Blocklist
+        mapping(address => bool) public blocklist;
+
+    // event
+    event AddedToBlocklist(address indexed account);
+    event RemovedFromBlocklist(address indexed account);
+
+    /**
+     * @notice  This function is called internally to add an address to the blocklist.
+     * @notice  The address must not be already on the blocklist.
+     * @notice  Emits an `addedToBlocklist` event upon successful addition.
+     * @dev     Internal function to add an address to the blocklist.
+     * @param   account The address to be added to the blocklist.
+     */
+    function _addToBlocklist(address account) internal {
+        require(!blocklist[account], "account is already in blocklist");
+        blocklist[account] = true;
+        emit AddedToBlocklist(account);
+    }
+
+    /**
+     * @notice  This function is accessible only to accounts with the `BLOCKLIST_ROLE`.
+     * @notice  It iterates through the provided addresses and calls the internal `_addToBlocklist` function for each one.
+     * @dev     Allows the `BLOCKLIST_ROLE` to add multiple addresses to the blocklist at once.
+     * @param   accounts An array of addresses to be added to the blocklist.
+     */
+    function addToBlocklist(
+        address[] memory accounts
+    ) external onlyRole(BLOCKLIST_ROLE) {
+        for (uint256 i; i < accounts.length; i++) {
+            _addToBlocklist(accounts[i]);
+        }
+    }
+
+    function _removeFromBlocklist(address account) internal {
+        require(blocklist[account], "account is not blocked");
+        blocklist[account] = false;
+        emit RemovedFromBlocklist(account);
+    }
+
+    /**
+     * @notice  This function is accessible only to accounts with the `BLOCKLIST_ROLE`.
+     * @notice  The address must be currently on the blocklist.
+     * @notice  Emits a `removedFromBlocklist` event upon successful removal.
+     * @dev     Allows the `BLOCKLIST_ROLE` to remove an address from the blocklist.
+     * @param   accounts An array of addresses to be removed from the blocklist.
+     */
+
+    function removeFromBlocklist(
+        address[] memory accounts
+    ) external onlyRole(BLOCKLIST_ROLE) {
+        for (uint256 i; i < accounts.length; i++) {
+            _removeFromBlocklist(accounts[i]);
+        }
     }
 
     // ERC1967

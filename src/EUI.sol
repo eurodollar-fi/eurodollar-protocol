@@ -5,8 +5,7 @@ import "openzeppelin-contracts-upgradeable/security/PausableUpgradeable.sol";
 import "openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
 import "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "./Allowlist.sol";
-import "./RoleControl.sol";
+import "openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import "./EUIVault.sol";
 
 /**
@@ -20,12 +19,20 @@ contract EUI is
     ERC20Upgradeable,
     EUIVault,
     PausableUpgradeable,
-    RoleControl,
     ERC20PermitUpgradeable,
     UUPSUpgradeable,
-    Allowlist
+    AccessControlUpgradeable
 {
     mapping(address => uint256) private _frozenBalances;
+
+    // Roles
+    bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
+    bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
+    bytes32 public constant ALLOWLIST_ROLE = keccak256("ALLOWLIST_ROLE");
+    bytes32 public constant FREEZER_ROLE = keccak256("FREEZER_ROLE");
+    bytes32 public constant WITHDRAW_ROLE = keccak256("WITHDRAW_ROLE");
 
     /**
      * @notice  The function using this modifier will only execute if the account is allowed.
@@ -57,21 +64,20 @@ contract EUI is
      * @notice  It sets up the EUI token and associated contracts with essential features and permissions.
      * @notice  The contracts' addresses for blocklisting, allowlisting, access control are provided as parameters.
      * @dev     Initialization function to set up the EuroInvest (EUI) token contract.
-     * @param   accessControlAddress  The address of the Access Control contract.
      * @param   eudAddress  The address of the EuroDollar (EUD) token contract.
      * @param   tokenFlipperAddress  The address of the token flipper contract.
      */
     function initialize(
-        address accessControlAddress,
         address eudAddress,
-        address tokenFlipperAddress
+        address tokenFlipperAddress,
+        address account
     ) public initializer {
         __ERC20_init("EuroDollar Invest", "EUI");
         __EUIVault_init(eudAddress, tokenFlipperAddress);
         __Pausable_init();
-        __RoleControl_init(accessControlAddress);
         __ERC20Permit_init("EuroDollar Invest");
         __UUPSUpgradeable_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     // ERC20 Pausable
@@ -320,5 +326,54 @@ contract EUI is
         );
         _frozenBalances[to] -= amount;
         _transfer(from, to, amount);
+    }
+
+    // Allowlist
+        mapping(address => bool) public allowlist;
+
+    // event
+    event AddedToAllowlist(address indexed account);
+    event RemovedFromAllowlist(address indexed account);
+
+    /**
+     * @notice  This function is called internally to add an address to the allowlist.
+     * @notice  The address must not be already on the allowlist.
+     * @notice  Emits an `AddedToAllowlist` event upon successful addition.
+     * @dev     Internal function to add an address to the allowlist.
+     * @param   account The address to be added to the allowlist.
+     */
+    function _addToAllowlist(address account) internal {
+        require(!allowlist[account], "account is already in allowlist");
+        allowlist[account] = true;
+        emit AddedToAllowlist(account);
+    }
+
+    function addToAllowlist(
+        address[] memory accounts
+    ) external onlyRole(ALLOWLIST_ROLE) {
+        for (uint256 i; i < accounts.length; i++) {
+            _addToAllowlist(accounts[i]);
+        }
+    }
+
+    function _removeFromAllowlist(address account) internal {
+        require(allowlist[account], "account is not in allowlist");
+        allowlist[account] = false;
+        emit RemovedFromAllowlist(account);
+    }
+
+    /**
+     * @notice  This function is accessible only to accounts with the `ALLOWLIST_ROLE`.
+     * @notice  The address must be currently on the allowlist.
+     * @notice  Emits a `RemovedFromAllowlist` event upon successful removal.
+     * @dev     Allows the `ALLOWLIST_ROLE` to remove an address from the allowlist.
+     * @param   accounts The address to be removed from the allowlist.
+     */
+    function removeFromAllowlist(
+        address[] memory accounts
+    ) external onlyRole(ALLOWLIST_ROLE) {
+        for (uint256 i; i < accounts.length; i++) {
+            _removeFromAllowlist(accounts[i]);
+        }
     }
 }
