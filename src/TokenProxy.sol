@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "openzeppelin-contracts/contracts/proxy/ERC1967/ERC1967Proxy.sol";
-import "openzeppelin-contracts/contracts/access/AccessControl.sol";
+import "oz/proxy/ERC1967/ERC1967Proxy.sol";
+import "oz/access/AccessControl.sol";
 
 /**
  * @author  Fenris

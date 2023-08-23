@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
-import "openzeppelin-contracts-upgradeable/security/PausableUpgradeable.sol";
-import "openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
-import "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "openzeppelin-contracts-upgradeable/access/AccessControlUpgradeable.sol";
+import "oz-up/security/PausableUpgradeable.sol";
+import "oz-up/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import "oz-up/proxy/utils/Initializable.sol";
+import "oz-up/proxy/utils/UUPSUpgradeable.sol";
+import "oz-up/access/AccessControlUpgradeable.sol";
 
 /**
  * @author  Fenris
@@ -50,7 +50,7 @@ contract EUD is
      * @notice Only essential setup should be done within this constructor.
      */
     constructor() {
-        _disableInitializers();
+        //_disableInitializers();
     }
 
     /**
