@@ -50,7 +50,7 @@ contract EUD is
      * @notice Only essential setup should be done within this constructor.
      */
     constructor() {
-        //_disableInitializers();
+        // _disableInitializers(); // Enable for deployment, disabled for testing.
     }
 
     /**
@@ -131,31 +131,13 @@ contract EUD is
         address from,
         address to,
         uint256 amount
-    ) internal override whenNotPaused {
-        super._beforeTokenTransfer(from, to, amount);
-    }
-
-    /**
-     * @notice  This function overrides the ERC20 `transfer` function.
-     * @notice  It ensures the account that token transfers are not in blocklist.
-     * @notice  The function returns `true` if the transfer is successful; otherwise, it reverts with an error.
-     * @dev     Transfers a specific amount of tokens to the specified address.
-     * @param   to  The address to which tokens will be transferred.
-     * @param   amount  The amount of tokens to be transferred.
-     * @return  bool  A boolean value indicating whether the transfer was successful.
-     */
-    function transfer(
-        address to,
-        uint256 amount
-    )
-        public
+    )   internal
         override
+        whenNotPaused
         notBlocked(msg.sender)
         notBlocked(to)
-        returns (bool)
     {
-        super.transfer(to, amount);
-        return true;
+        super._beforeTokenTransfer(from, to, amount);
     }
 
     /**
@@ -178,25 +160,6 @@ contract EUD is
         returns (bool)
     {
         super.approve(spender, amount);
-        return true;
-    }
-
-    /**
-     * @notice  This function overrides the ERC20 `transferFrom` function.
-     * @notice  It ensures that token transfers are not allowed for blocklisted accounts.
-     * @notice  The function returns `true` if the transfer is successful; otherwise, it reverts with an error.
-     * @dev     Transfers tokens from one address to another using the allowance mechanism.
-     * @param   from  The address from which tokens are transferred.
-     * @param   to  The address to which tokens are transferred.
-     * @param   amount  The amount of tokens to be transferred.
-     * @return  bool  A boolean value indicating whether the transfer was successful.
-     */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) public override notBlocked(from) notBlocked(to) returns (bool) {
-        super.transferFrom(from, to, amount);
         return true;
     }
 
@@ -321,13 +284,25 @@ contract EUD is
         emit AddedToBlocklist(account);
     }
 
+    function addToBlocklist(
+        address account
+    ) external onlyRole(BLOCKLIST_ROLE) {
+        _addToBlocklist(account); 
+    }
+
+    function removeFromBlocklist(
+        address account
+    ) external onlyRole(BLOCKLIST_ROLE) {
+        _removeFromBlocklist(account); 
+    }
+
     /**
      * @notice  This function is accessible only to accounts with the `BLOCKLIST_ROLE`.
      * @notice  It iterates through the provided addresses and calls the internal `_addToBlocklist` function for each one.
      * @dev     Allows the `BLOCKLIST_ROLE` to add multiple addresses to the blocklist at once.
      * @param   accounts An array of addresses to be added to the blocklist.
      */
-    function addToBlocklist(
+    function addManyToBlocklist(
         address[] memory accounts
     ) external onlyRole(BLOCKLIST_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
@@ -349,7 +324,7 @@ contract EUD is
      * @param   accounts An array of addresses to be removed from the blocklist.
      */
 
-    function removeFromBlocklist(
+    function removeManyFromBlocklist(
         address[] memory accounts
     ) external onlyRole(BLOCKLIST_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
