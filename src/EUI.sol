@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
 pragma solidity ^0.8.12;
 
 import "oz-up/security/PausableUpgradeable.sol";
@@ -11,8 +11,8 @@ import "../interfaces/IYieldOracle.sol";
 import "../interfaces/IEUD.sol";
 
 /**
- * @author  Fenris
- * @title   An ERC20 contract named EuroInvest
+ * @author  Rhinefield Technologies Limited
+ * @title   EUI - Eurodollar Invest
  * @dev     Inherits the OpenZepplin ERC20Upgradeable implentation
  * @notice  Serves as a sercurity token
  */
@@ -73,9 +73,9 @@ contract EUI is
      * @param   yieldOracleAddress  The address of the token flipper contract.
      */
     function initialize(
+        address account,
         address eudAddress,
-        address yieldOracleAddress,
-        address account
+        address yieldOracleAddress
     ) public initializer {
         __ERC20_init("EuroDollar Invest", "EUI");
         __Pausable_init();

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
 pragma solidity ^0.8.12;
 
 import "oz-up/security/PausableUpgradeable.sol";
@@ -8,8 +8,8 @@ import "oz-up/proxy/utils/UUPSUpgradeable.sol";
 import "oz-up/access/AccessControlUpgradeable.sol";
 
 /**
- * @author  Fenris
- * @title   An ERC20 contract named EuroDollar
+ * @author  Rhinefield Technologies Limited
+ * @title   EUD - Eurodollar Token
  * @dev     Inherits the OpenZepplin ERC20Upgradeable implentation
  * @notice  Serves as a stable token
  */

@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
 pragma solidity ^0.8.12;
 import "oz/security/Pausable.sol";
 import "oz/access/AccessControl.sol";
@@ -16,6 +16,9 @@ contract YieldOracle is Pausable, AccessControl {
 
     uint128 public oldPrice;
     uint128 public currentPrice;
+    uint256 public maxPriceIncrease;
+    uint256 public lastUpdate;
+    uint256 public delay;
 
     // Roles
     bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
@@ -26,12 +29,11 @@ contract YieldOracle is Pausable, AccessControl {
      * @dev     Constructor to initialize the YieldOracle contract.
      * @param   account The address of the EuroDollarAccessControl contract for role-based access control.
      */
-    constructor(
-        address account
-    ) Pausable() {
+    constructor(address account) {
         _grantRole(DEFAULT_ADMIN_ROLE, account);
         oldPrice = 1e18;
         currentPrice = 1e18;
+        lastUpdate = block.timestamp;
     }
 
     // Pausable
@@ -67,12 +69,26 @@ contract YieldOracle is Pausable, AccessControl {
     function updatePrice(
         uint128 newPrice
     ) external onlyRole(ORACLE_ROLE) whenNotPaused returns (bool) {
+        require(block.timestamp >= lastUpdate + delay, "YieldOracle: price can only be updated once per hour");
+        require(newPrice-currentPrice <= maxPriceIncrease, "YieldOracle: price increase exceeds maximum allowed");
+        lastUpdate = block.timestamp;
         oldPrice = currentPrice;
         currentPrice = newPrice;
         return true;
     }
 
-        /**
+    function setMaxPriceIncrease(uint256 _maxPriceIncrease) external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused returns (bool) {
+        maxPriceIncrease = _maxPriceIncrease;
+        return true;
+    }
+
+
+    function setDelay(uint256 _delay) external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused returns (bool) {
+        delay = _delay;
+        return true;
+    }
+
+    /**
      * @notice  This function is a read-only function and does not modify any state in the contract.
      * @dev     Function to calculate the equivalent amount of EUI tokens for a given amount of EUD tokens.
      * @param   eudAmount  The amount of EUD tokens for which the equivalent EUI tokens need to be calculated.

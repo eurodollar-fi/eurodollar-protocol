@@ -1,7 +1,8 @@
 pragma solidity ^0.8.13;
 
 import "forge-std/Test.sol";
-import "../src/EUD.sol";
+import {ERC1967Proxy} from "oz/proxy/ERC1967/ERC1967Proxy.sol";
+import {EUD} from "../src/EUD.sol";
 
 contract EUDTest is Test
 {
