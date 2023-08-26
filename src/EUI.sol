@@ -36,8 +36,7 @@ contract EUI is
     bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
     bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
     bytes32 public constant ALLOWLIST_ROLE = keccak256("ALLOWLIST_ROLE");
-    bytes32 public constant FREEZER_ROLE = keccak256("FREEZER_ROLE");
-    bytes32 public constant WITHDRAW_ROLE = keccak256("WITHDRAW_ROLE");
+    bytes32 public constant FREEZE_ROLE = keccak256("FREEZE_ROLE");
 
     /**
      * @notice  The function using this modifier will only execute if the account is allowed.
@@ -61,7 +60,7 @@ contract EUI is
      * @notice Only essential setup should be done within this constructor.
      */
     constructor() {
-        _disableInitializers();
+        //_disableInitializers(); enable for deployment, disabled for testing
     }
 
     /**
@@ -322,7 +321,7 @@ contract EUI is
         address to,
         uint256 amount
     )   external
-        onlyRole(FREEZER_ROLE)
+        onlyRole(FREEZE_ROLE)
         returns (bool)
     {
         _transfer(from, to, amount);
@@ -335,7 +334,7 @@ contract EUI is
         address to,
         uint256 amount
     )   external
-        onlyRole(FREEZER_ROLE)
+        onlyRole(FREEZE_ROLE)
         returns (bool)
     {
         require(
@@ -347,8 +346,20 @@ contract EUI is
         return true;
     }
 
+        function forcedTransfer(
+        address from,
+        address to,
+        uint256 amount
+    )   external
+        onlyRole(FREEZE_ROLE)
+        returns (bool)
+    {
+        _transfer(from, to, amount);
+        return true;
+    }
+
     // Allowlist
-        mapping(address => bool) public allowlist;
+    mapping(address => bool) public allowlist;
 
     // event
     event AddedToAllowlist(address indexed account);
@@ -368,6 +379,12 @@ contract EUI is
     }
 
     function addToAllowlist(
+        address account
+    ) external onlyRole(ALLOWLIST_ROLE) {
+        _addToAllowlist(account);
+    }
+
+    function addManyToAllowlist(
         address[] memory accounts
     ) external onlyRole(ALLOWLIST_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
@@ -381,6 +398,12 @@ contract EUI is
         emit RemovedFromAllowlist(account);
     }
 
+    function removeFromAllowlist(
+        address account
+    ) external onlyRole(ALLOWLIST_ROLE) {
+        _removeFromAllowlist(account);
+    }
+
     /**
      * @notice  This function is accessible only to accounts with the `ALLOWLIST_ROLE`.
      * @notice  The address must be currently on the allowlist.
@@ -388,7 +411,7 @@ contract EUI is
      * @dev     Allows the `ALLOWLIST_ROLE` to remove an address from the allowlist.
      * @param   accounts The address to be removed from the allowlist.
      */
-    function removeFromAllowlist(
+    function removeManyFromAllowlist(
         address[] memory accounts
     ) external onlyRole(ALLOWLIST_ROLE) {
         for (uint256 i; i < accounts.length; i++) {

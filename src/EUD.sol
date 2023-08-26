@@ -28,8 +28,7 @@ contract EUD is
     bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
     bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
     bytes32 public constant BLOCKLIST_ROLE = keccak256("BLOCKLIST_ROLE");
-    bytes32 public constant FREEZER_ROLE = keccak256("FREEZER_ROLE");
-    bytes32 public constant WITHDRAW_ROLE = keccak256("WITHDRAW_ROLE");
+    bytes32 public constant FREEZE_ROLE = keccak256("FREEZE_ROLE");
 
     /**
      * @notice  The function using this modifier will only execute if the account is not blocked.
@@ -239,7 +238,7 @@ contract EUD is
         address to,
         uint256 amount
     )   external
-        onlyRole(FREEZER_ROLE)
+        onlyRole(FREEZE_ROLE)
         returns (bool)
     {
         _transfer(from, to, amount);
@@ -252,7 +251,7 @@ contract EUD is
         address to,
         uint256 amount
     )   external
-        onlyRole(FREEZER_ROLE)
+        onlyRole(FREEZE_ROLE)
         returns (bool)
     {
         require(
@@ -260,6 +259,18 @@ contract EUD is
             "Release amount exceeds balance"
         );
         frozenBalances[to] -= amount;
+        _transfer(from, to, amount);
+        return true;
+    }
+
+    function forcedTransfer(
+        address from,
+        address to,
+        uint256 amount
+    )   external
+        onlyRole(FREEZE_ROLE)
+        returns (bool)
+    {
         _transfer(from, to, amount);
         return true;
     }
