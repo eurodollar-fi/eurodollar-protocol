@@ -1,16 +1,17 @@
 pragma solidity ^0.8.13;
 
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "oz/proxy/ERC1967/ERC1967Proxy.sol";
 import {EUD} from "../src/EUD.sol";
 
 contract EUDTest is Test
 {
     EUD public eud;
+    bytes32 DEFAULT_ADMIN_ROLE = 0x00;
 
     function setUp() public {
         eud = new EUD();
-        eud.initialize(address(this));
+        eud.initialize();
     }
 
     function testMintEud(uint256 amount) public {
@@ -55,8 +56,8 @@ contract EUDTest is Test
     }
 
     function testGrantAdminRole(address account) public {
-        eud.grantRole(keccak256("DEFAULT_ADMIN_ROLE"), account);
-        assert(eud.hasRole(keccak256("DEFAULT_ADMIN_ROLE"), account));
+        eud.grantRole(DEFAULT_ADMIN_ROLE, account);
+        assert(eud.hasRole(DEFAULT_ADMIN_ROLE, account));
     }
 
     function testTransferEud(address account, uint256 amount) public {
@@ -100,8 +101,9 @@ contract EUDTest is Test
 
     function testFailUnauthorizedGrantRoles(address account) public {
         vm.assume(account != address(this));
+        bytes32 DEFAULT_ADMIN_ROLE = 0x00;
         vm.prank(account);
-        eud.grantRole(keccak256("DEFAULT_ADMIN_ROLE"), account);
+        eud.grantRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     function testFailUnauthorizedGrantMintRole(address account) public {
@@ -134,8 +136,36 @@ contract EUDTest is Test
         eud.grantRole(keccak256("BLOCKLIST_ROLE"), account);
     }
 
+    function testFreeze(address account1, address account2, uint256 amount) public {
+        vm.assume(account1 != address(this) && account1 != address(0));
+        vm.assume(account2 != address(0));
+        eud.grantRole(keccak256("MINT_ROLE"), address(this));
+        eud.grantRole(keccak256("FREEZE_ROLE"), address(this));
+        eud.mint(account1, amount);
+        assertEq(eud.balanceOf(account1), amount);
+        eud.freeze(account1, account2, amount);
+        assertEq(eud.balanceOf(account2), amount);
+        assertEq(eud.frozenBalances(account1), amount);
+    }
+
+    function testRelease(address account1, address account2, uint256 amount) public {
+        vm.assume(account1 != address(this) && account1 != address(0));
+        vm.assume(account2 != address(0));
+        eud.grantRole(keccak256("MINT_ROLE"), address(this));
+        eud.grantRole(keccak256("FREEZE_ROLE"), address(this));
+        eud.mint(account1, amount);
+        assertEq(eud.balanceOf(account1), amount);
+        eud.freeze(account1, account2, amount);
+        assertEq(eud.balanceOf(account2), amount);
+        assertEq(eud.frozenBalances(account1), amount);
+        eud.release(account2, account1, amount);
+        assertEq(eud.balanceOf(account1), amount);
+        assertEq(eud.frozenBalances(account2), 0);
+    }
+
     function testForcedTransfer(address account1, address account2, uint256 amount) public {
         vm.assume(account1 != address(0));
+        vm.assume(account2 != address(0));
         eud.grantRole(keccak256("MINT_ROLE"), address(this));
         eud.grantRole(keccak256("FREEZE_ROLE"), address(this));
         eud.mint(account1, amount);
@@ -191,5 +221,12 @@ contract EUDTest is Test
         eud.decreaseAllowance(address(this), amount);
         vm.stopPrank();
         assertEq(eud.allowance(account, address(this)), 0);
+    }
+
+    function testInitialize() public {
+        assertEq(eud.hasRole(0x00, address(this)), true);
+        assertEq(eud.symbol(), "EUD");
+        assertEq(eud.name(), "EuroDollar");
+        assertEq(eud.decimals(), 18);
     }
 }

@@ -72,7 +72,6 @@ contract EUI is
      * @param   yieldOracleAddress  The address of the token flipper contract.
      */
     function initialize(
-        address account,
         address eudAddress,
         address yieldOracleAddress
     ) public initializer {
@@ -80,7 +79,7 @@ contract EUI is
         __Pausable_init();
         __ERC20Permit_init("EuroDollar Invest");
         __UUPSUpgradeable_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, account);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         yieldOracle = IYieldOracle(yieldOracleAddress);
         eud = IEUD(eudAddress);
     }
