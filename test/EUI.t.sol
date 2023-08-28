@@ -139,9 +139,10 @@ contract EUITest is Test
         eui.grantRole(keccak256("FREEZE_ROLE"), account);
     }
 
-    function testFailUnauthorizedGrantBlocklistRole(address account) public {
+    function testFailUnauthorizedGrantAllowlistRole(address account) public {
+        vm.assume(account != address(this));
         vm.prank(account);
-        eui.grantRole(keccak256("BLOCKLIST_ROLE"), account);
+        eui.grantRole(keccak256("ALLOWLIST_ROLE"), account);
     }
 
     function testForcedTransfer(address account1, address account2, uint256 amount) public {
