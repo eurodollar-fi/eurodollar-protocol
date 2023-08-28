@@ -24,11 +24,11 @@ contract EUD is
     mapping(address => uint256) public frozenBalances;
 
     // Roles
-    bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
-    bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
-    bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
-    bytes32 public constant BLOCKLIST_ROLE = keccak256("BLOCKLIST_ROLE");
-    bytes32 public constant FREEZE_ROLE = keccak256("FREEZE_ROLE");
+    bytes32 public constant PAUSE_ROLE      = keccak256("PAUSE_ROLE");
+    bytes32 public constant MINT_ROLE       = keccak256("MINT_ROLE");
+    bytes32 public constant BURN_ROLE       = keccak256("BURN_ROLE");
+    bytes32 public constant BLOCKLIST_ROLE  = keccak256("BLOCKLIST_ROLE");
+    bytes32 public constant FREEZE_ROLE     = keccak256("FREEZE_ROLE");
 
     /**
      * @notice  The function using this modifier will only execute if the account is not blocked.
@@ -58,13 +58,12 @@ contract EUD is
      * @notice  The contracts' addresses for blocklisting and access control are provided as parameters.
      * @dev     Initialization function to set up the EuroDollar (EUD) token contract.
      */
-    function initialize(address account
-    ) public initializer {
+    function initialize() public initializer {
         __ERC20_init("EuroDollar", "EUD");
         __Pausable_init();
         __ERC20Permit_init("EuroDollar");
         __UUPSUpgradeable_init();
-        _grantRole(DEFAULT_ADMIN_ROLE, account);
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
     // ERC20 Pausable

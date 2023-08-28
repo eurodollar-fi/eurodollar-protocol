@@ -1,6 +1,6 @@
 pragma solidity ^0.8.13;
 
-import "forge-std/Test.sol";
+import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "oz/proxy/ERC1967/ERC1967Proxy.sol";
 import {IEUD} from "../interfaces/IEUD.sol";
 import {IYieldOracle} from "../interfaces/IYieldOracle.sol";
@@ -11,10 +11,11 @@ contract EUITest is Test
     EUI public eui;
     address public eud;
     address public yieldOracle;
+    bytes32 public DEFAULT_ADMIN_ROLE = 0x00;
 
     function setUp() public {
         eui = new EUI();
-        eui.initialize(address(this), eud, yieldOracle);
+        eui.initialize(eud, yieldOracle);
     }
 
     function testMintEui(uint256 amount) public {
@@ -63,8 +64,8 @@ contract EUITest is Test
     }
 
     function testGrantAdminRole(address account) public {
-        eui.grantRole(keccak256("DEFAULT_ADMIN_ROLE"), account);
-        assert(eui.hasRole(keccak256("DEFAULT_ADMIN_ROLE"), account));
+        eui.grantRole(DEFAULT_ADMIN_ROLE, account);
+        assert(eui.hasRole(DEFAULT_ADMIN_ROLE, account));
     }
 
     function testTransferEui(address account, uint256 amount) public {
@@ -112,7 +113,7 @@ contract EUITest is Test
     function testFailUnauthorizedGrantRoles(address account) public {
         vm.assume(account != address(this));
         vm.prank(account);
-        eui.grantRole(keccak256("DEFAULT_ADMIN_ROLE"), account);
+        eui.grantRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     function testFailUnauthorizedGrantMintRole(address account) public {
@@ -183,32 +184,32 @@ contract EUITest is Test
         assertEq(eui.allowance(account, address(this)), amount);
     }
 
-    function testIncreaseAllowance(address account, uint256 amount) public {
-        vm.assume(account != address(0));
+    function testIncreaseAllowance(address account1, address account2, uint256 amount) public {
+        vm.assume(account1 != address(0) && account2 != address(0) && account1 != account2);
         eui.grantRole(keccak256("MINT_ROLE"), address(this));
         eui.grantRole(keccak256("ALLOWLIST_ROLE"), address(this));
-        eui.addToAllowlist(address(this));
-        eui.addToAllowlist(account);
-        eui.mintEUI(account, amount);
-        assertEq(eui.balanceOf(account), amount);
-        vm.prank(account);
-        eui.increaseAllowance(address(this), amount);
-        assertEq(eui.allowance(account, address(this)), amount);
+        eui.addToAllowlist(account1);
+        eui.addToAllowlist(account2);
+        eui.mintEUI(account1, amount);
+        assertEq(eui.balanceOf(account1), amount);
+        vm.prank(account1);
+        eui.increaseAllowance(account2, amount);
+        assertEq(eui.allowance(account1, account2), amount);
     }
 
-    function testDecreaseAllowance(address account, uint256 amount) public {
-        vm.assume(account != address(0));
+    function testDecreaseAllowance(address account1, address account2, uint256 amount) public {
+        vm.assume(account1 != address(0) && account2 != address(0) && account1 != account2);
         eui.grantRole(keccak256("MINT_ROLE"), address(this));
         eui.grantRole(keccak256("ALLOWLIST_ROLE"), address(this));
-        eui.addToAllowlist(address(this));
-        eui.addToAllowlist(account);
-        eui.mintEUI(account, amount);
-        assertEq(eui.balanceOf(account), amount);
-        vm.startPrank(account);
-        eui.increaseAllowance(address(this), amount);
-        assertEq(eui.allowance(account, address(this)), amount);
-        eui.decreaseAllowance(address(this), amount);
+        eui.addToAllowlist(account1);
+        eui.addToAllowlist(account2);
+        eui.mintEUI(account1, amount);
+        assertEq(eui.balanceOf(account1), amount);
+        vm.startPrank(account1);
+        eui.increaseAllowance(account2, amount);
+        assertEq(eui.allowance(account1, account2), amount);
+        eui.decreaseAllowance(account2, amount);
         vm.stopPrank();
-        assertEq(eui.allowance(account, address(this)), 0);
+        assertEq(eui.allowance(account1, account2), 0);
     }
 }

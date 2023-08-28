@@ -5,7 +5,7 @@ import "oz/access/AccessControl.sol";
 import "oz/utils/math/Math.sol";
 
 /**
- * @author  Fenris
+ * @author  Rhinefield Technologies Limited
  * @title   YieldOracle
  * @dev     A contract that implements a yield oracle for EuroInvest (EUI) based on epoch-based pricing.
  * @dev     The oracle provides price data to determine how much EuroDollar (EUD) is needed to flip to EUI tokens for each epoch.
@@ -14,8 +14,8 @@ import "oz/utils/math/Math.sol";
 contract YieldOracle is Pausable, AccessControl {
     using Math for uint256;
 
-    uint128 public oldPrice;
-    uint128 public currentPrice;
+    uint256 public oldPrice;
+    uint256 public currentPrice;
     uint256 public maxPriceIncrease;
     uint256 public lastUpdate;
     uint256 public delay;
@@ -27,12 +27,13 @@ contract YieldOracle is Pausable, AccessControl {
     /**
      * @notice  The constructor sets up the contract with the specified access control address, initial prices, and the maximum price increase.
      * @dev     Constructor to initialize the YieldOracle contract.
-     * @param   account The address of the EuroDollarAccessControl contract for role-based access control.
      */
-    constructor(address account) {
-        _grantRole(DEFAULT_ADMIN_ROLE, account);
+    constructor() {
+        _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
         oldPrice = 1e18;
         currentPrice = 1e18;
+        maxPriceIncrease = 1e17;
+        delay = 1 hours;
         lastUpdate = block.timestamp;
     }
 
@@ -67,7 +68,7 @@ contract YieldOracle is Pausable, AccessControl {
      * @return  bool    A boolean indicating the success of the price update.
      */
     function updatePrice(
-        uint128 newPrice
+        uint256 newPrice
     ) external onlyRole(ORACLE_ROLE) whenNotPaused returns (bool) {
         require(block.timestamp >= lastUpdate + delay, "YieldOracle: price can only be updated once per hour");
         require(newPrice-currentPrice <= maxPriceIncrease, "YieldOracle: price increase exceeds maximum allowed");
@@ -82,9 +83,21 @@ contract YieldOracle is Pausable, AccessControl {
         return true;
     }
 
-
     function setDelay(uint256 _delay) external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused returns (bool) {
         delay = _delay;
+        return true;
+    }
+
+    function adminUpdateCurrentPrice(
+        uint256 price
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused returns (bool) {
+        currentPrice = price;
+        return true;
+    }
+    function adminUpdateOldPrice(
+        uint256 price
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused returns (bool) {
+        oldPrice = price;
         return true;
     }
 
