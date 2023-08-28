@@ -1,7 +1,8 @@
-// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
 pragma solidity ^0.8.12;
-import "openzeppelin-contracts/contracts/security/Pausable.sol";
-import "./RoleControl.sol";
+import "oz/security/Pausable.sol";
+import "oz/access/AccessControl.sol";
+import "oz/utils/math/Math.sol";
 
 /**
  * @author  Fenris
@@ -10,21 +11,29 @@ import "./RoleControl.sol";
  * @dev     The oracle provides price data to determine how much EuroDollar (EUD) is needed to flip to EUI tokens for each epoch.
  * @dev     The oracle allows price updates based on the `ORACLE_ROLE` and pausing functionality using the `PAUSE_ROLE`.
  */
-contract YieldOracle is Pausable, RoleControl {
+contract YieldOracle is Pausable, AccessControl {
+    using Math for uint256;
+
     uint128 public oldPrice;
     uint128 public currentPrice;
+    uint256 public maxPriceIncrease;
+    uint256 public lastUpdate;
+    uint256 public delay;
+
+    // Roles
+    bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
+    bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
 
     /**
      * @notice  The constructor sets up the contract with the specified access control address, initial prices, and the maximum price increase.
      * @dev     Constructor to initialize the YieldOracle contract.
-     * @param   accessControlAddress The address of the EuroDollarAccessControl contract for role-based access control.
+     * @param   account The address of the EuroDollarAccessControl contract for role-based access control.
      */
-    constructor(
-        address accessControlAddress
-    ) Pausable() {
-        __RoleControl_init(accessControlAddress);
+    constructor(address account) {
+        _grantRole(DEFAULT_ADMIN_ROLE, account);
         oldPrice = 1e18;
         currentPrice = 1e18;
+        lastUpdate = block.timestamp;
     }
 
     // Pausable
@@ -60,8 +69,52 @@ contract YieldOracle is Pausable, RoleControl {
     function updatePrice(
         uint128 newPrice
     ) external onlyRole(ORACLE_ROLE) whenNotPaused returns (bool) {
+        require(block.timestamp >= lastUpdate + delay, "YieldOracle: price can only be updated once per hour");
+        require(newPrice-currentPrice <= maxPriceIncrease, "YieldOracle: price increase exceeds maximum allowed");
+        lastUpdate = block.timestamp;
         oldPrice = currentPrice;
         currentPrice = newPrice;
         return true;
+    }
+
+    function setMaxPriceIncrease(uint256 _maxPriceIncrease) external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused returns (bool) {
+        maxPriceIncrease = _maxPriceIncrease;
+        return true;
+    }
+
+
+    function setDelay(uint256 _delay) external onlyRole(DEFAULT_ADMIN_ROLE) whenNotPaused returns (bool) {
+        delay = _delay;
+        return true;
+    }
+
+    /**
+     * @notice  This function is a read-only function and does not modify any state in the contract.
+     * @dev     Function to calculate the equivalent amount of EUI tokens for a given amount of EUD tokens.
+     * @param   eudAmount  The amount of EUD tokens for which the equivalent EUI tokens need to be calculated.
+     * @return  uint256  The equivalent amount of EUI tokens based on the current price from the yield oracle.
+     */
+    function fromEudToEui(uint256 eudAmount) public view returns (uint256) {
+        return
+            eudAmount.mulDiv(
+                10 ** 18,
+                currentPrice,
+                Math.Rounding.Down
+            );
+    }
+
+    /**
+     * @notice  This function is a read-only function and does not modify any state in the contract.
+     * @dev     Function to calculate the equivalent amount of EUD tokens for a given amount of EUI tokens.
+     * @param   euiAmount  The amount of EUI tokens for which the equivalent EUD tokens need to be calculated.
+     * @return  uint256  The equivalent amount of EUD tokens based on the previous epoch price from the yield oracle.
+     */
+    function fromEuiToEud(uint256 euiAmount) public view returns (uint256) {
+        return
+            euiAmount.mulDiv(
+                oldPrice,
+                10 ** 18,
+                Math.Rounding.Down
+            );
     }
 }

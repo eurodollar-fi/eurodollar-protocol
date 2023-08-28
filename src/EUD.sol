@@ -1,16 +1,15 @@
-// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
 pragma solidity ^0.8.12;
 
-import "openzeppelin-contracts-upgradeable/security/PausableUpgradeable.sol";
-import "openzeppelin-contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
-import "openzeppelin-contracts-upgradeable/proxy/utils/Initializable.sol";
-import "openzeppelin-contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
-import "./Blocklist.sol";
-import "./RoleControl.sol";
+import "oz-up/security/PausableUpgradeable.sol";
+import "oz-up/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import "oz-up/proxy/utils/Initializable.sol";
+import "oz-up/proxy/utils/UUPSUpgradeable.sol";
+import "oz-up/access/AccessControlUpgradeable.sol";
 
 /**
- * @author  Fenris
- * @title   An ERC20 contract named EuroDollar
+ * @author  Rhinefield Technologies Limited
+ * @title   EUD - Eurodollar Token
  * @dev     Inherits the OpenZepplin ERC20Upgradeable implentation
  * @notice  Serves as a stable token
  */
@@ -18,12 +17,18 @@ import "./RoleControl.sol";
 contract EUD is
     Initializable,
     PausableUpgradeable,
-    RoleControl,
     ERC20PermitUpgradeable,
     UUPSUpgradeable,
-    Blocklist
+    AccessControlUpgradeable
 {
     mapping(address => uint256) public frozenBalances;
+
+    // Roles
+    bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
+    bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
+    bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
+    bytes32 public constant BLOCKLIST_ROLE = keccak256("BLOCKLIST_ROLE");
+    bytes32 public constant FREEZE_ROLE = keccak256("FREEZE_ROLE");
 
     /**
      * @notice  The function using this modifier will only execute if the account is not blocked.
@@ -44,7 +49,7 @@ contract EUD is
      * @notice Only essential setup should be done within this constructor.
      */
     constructor() {
-        _disableInitializers();
+        // _disableInitializers(); // Enable for deployment, disabled for testing.
     }
 
     /**
@@ -52,16 +57,14 @@ contract EUD is
      * @notice  It sets up the EUD token with essential features and permissions.
      * @notice  The contracts' addresses for blocklisting and access control are provided as parameters.
      * @dev     Initialization function to set up the EuroDollar (EUD) token contract.
-     * @param   accessControlAddress  The address of the Access Control contract.
      */
-    function initialize(
-        address accessControlAddress
+    function initialize(address account
     ) public initializer {
         __ERC20_init("EuroDollar", "EUD");
         __Pausable_init();
-        __RoleControl_init(accessControlAddress);
         __ERC20Permit_init("EuroDollar");
         __UUPSUpgradeable_init();
+        _grantRole(DEFAULT_ADMIN_ROLE, account);
     }
 
     // ERC20 Pausable
@@ -127,30 +130,13 @@ contract EUD is
         address from,
         address to,
         uint256 amount
-    ) internal override whenNotPaused {
-        super._beforeTokenTransfer(from, to, amount);
-    }
-
-    /**
-     * @notice  This function overrides the ERC20 `transfer` function.
-     * @notice  It ensures the account that token transfers are not in blocklist.
-     * @notice  The function returns `true` if the transfer is successful; otherwise, it reverts with an error.
-     * @dev     Transfers a specific amount of tokens to the specified address.
-     * @param   to  The address to which tokens will be transferred.
-     * @param   amount  The amount of tokens to be transferred.
-     * @return  bool  A boolean value indicating whether the transfer was successful.
-     */
-    function transfer(
-        address to,
-        uint256 amount
-    )
-        public
+    )   internal
         override
+        whenNotPaused
         notBlocked(msg.sender)
         notBlocked(to)
-        returns (bool)
     {
-        super.transfer(to, amount);
+        super._beforeTokenTransfer(from, to, amount);
     }
 
     /**
@@ -173,24 +159,7 @@ contract EUD is
         returns (bool)
     {
         super.approve(spender, amount);
-    }
-
-    /**
-     * @notice  This function overrides the ERC20 `transferFrom` function.
-     * @notice  It ensures that token transfers are not allowed for blocklisted accounts.
-     * @notice  The function returns `true` if the transfer is successful; otherwise, it reverts with an error.
-     * @dev     Transfers tokens from one address to another using the allowance mechanism.
-     * @param   from  The address from which tokens are transferred.
-     * @param   to  The address to which tokens are transferred.
-     * @param   amount  The amount of tokens to be transferred.
-     * @return  bool  A boolean value indicating whether the transfer was successful.
-     */
-    function transferFrom(
-        address from,
-        address to,
-        uint256 amount
-    ) public override notBlocked(from) notBlocked(to) returns (bool) {
-        super.transferFrom(from, to, amount);
+        return true;
     }
 
     /**
@@ -213,6 +182,7 @@ contract EUD is
         returns (bool)
     {
         super.increaseAllowance(spender, addedValue);
+        return true;
     }
 
     /**
@@ -235,6 +205,7 @@ contract EUD is
         returns (bool)
     {
         super.decreaseAllowance(spender, subtractedValue);
+        return true;
     }
 
     /**
@@ -266,28 +237,116 @@ contract EUD is
         address from,
         address to,
         uint256 amount
-    ) external onlyRole(FREEZER_ROLE) {
+    )   external
+        onlyRole(FREEZE_ROLE)
+        returns (bool)
+    {
         _transfer(from, to, amount);
         frozenBalances[from] += amount;
+        return true;
     }
 
     function release(
         address from,
         address to,
         uint256 amount
-    ) external onlyRole(FREEZER_ROLE) {
+    )   external
+        onlyRole(FREEZE_ROLE)
+        returns (bool)
+    {
         require(
             frozenBalances[to] >= amount,
             "Release amount exceeds balance"
         );
         frozenBalances[to] -= amount;
         _transfer(from, to, amount);
+        return true;
+    }
+
+    function forcedTransfer(
+        address from,
+        address to,
+        uint256 amount
+    )   external
+        onlyRole(FREEZE_ROLE)
+        returns (bool)
+    {
+        _transfer(from, to, amount);
+        return true;
+    }
+
+    // Blocklist
+    mapping(address => bool) public blocklist;
+
+    // event
+    event AddedToBlocklist(address indexed account);
+    event RemovedFromBlocklist(address indexed account);
+
+    /**
+     * @notice  This function is called internally to add an address to the blocklist.
+     * @notice  The address must not be already on the blocklist.
+     * @notice  Emits an `addedToBlocklist` event upon successful addition.
+     * @dev     Internal function to add an address to the blocklist.
+     * @param   account The address to be added to the blocklist.
+     */
+    function _addToBlocklist(address account) internal {
+        require(!blocklist[account], "account is already in blocklist");
+        blocklist[account] = true;
+        emit AddedToBlocklist(account);
+    }
+
+    function addToBlocklist(
+        address account
+    ) external onlyRole(BLOCKLIST_ROLE) {
+        _addToBlocklist(account); 
+    }
+
+    function removeFromBlocklist(
+        address account
+    ) external onlyRole(BLOCKLIST_ROLE) {
+        _removeFromBlocklist(account); 
+    }
+
+    /**
+     * @notice  This function is accessible only to accounts with the `BLOCKLIST_ROLE`.
+     * @notice  It iterates through the provided addresses and calls the internal `_addToBlocklist` function for each one.
+     * @dev     Allows the `BLOCKLIST_ROLE` to add multiple addresses to the blocklist at once.
+     * @param   accounts An array of addresses to be added to the blocklist.
+     */
+    function addManyToBlocklist(
+        address[] memory accounts
+    ) external onlyRole(BLOCKLIST_ROLE) {
+        for (uint256 i; i < accounts.length; i++) {
+            _addToBlocklist(accounts[i]);
+        }
+    }
+
+    function _removeFromBlocklist(address account) internal {
+        require(blocklist[account], "account is not blocked");
+        blocklist[account] = false;
+        emit RemovedFromBlocklist(account);
+    }
+
+    /**
+     * @notice  This function is accessible only to accounts with the `BLOCKLIST_ROLE`.
+     * @notice  The address must be currently on the blocklist.
+     * @notice  Emits a `removedFromBlocklist` event upon successful removal.
+     * @dev     Allows the `BLOCKLIST_ROLE` to remove an address from the blocklist.
+     * @param   accounts An array of addresses to be removed from the blocklist.
+     */
+
+    function removeManyFromBlocklist(
+        address[] memory accounts
+    ) external onlyRole(BLOCKLIST_ROLE) {
+        for (uint256 i; i < accounts.length; i++) {
+            _removeFromBlocklist(accounts[i]);
+        }
     }
 
     // ERC1967
     /**
      * @notice  This function is called internally to authorize an upgrade.
-     * @notice  Only accounts with the `UPGRADER_ROLE` can call this function.
+     * @notice  Only accounts with the `DEFAULT_ADMIN_ROLE` can call this function.
      * @notice  This function is used to control access to contract upgrades.
      * @notice  The function does not perform any other action other than checking the role.
      * @dev     Internal function to authorize an upgrade to a new implementation.
@@ -295,5 +354,5 @@ contract EUD is
      */
     function _authorizeUpgrade(
         address newImplementation
-    ) internal override onlyRole(UPGRADER_ROLE) {}
+    ) internal override onlyRole(DEFAULT_ADMIN_ROLE) {}
 }
