@@ -345,7 +345,7 @@ contract EUI is
         return true;
     }
 
-        function forcedTransfer(
+    function reclaim(
         address from,
         address to,
         uint256 amount
