@@ -78,7 +78,7 @@ contract EUDTest is Test
         assertEq(eud.paused(), true);
     }
 
-        function testFailUnauthorizedGrantRoles(address account) public {
+    function testFailUnauthorizedGrantRoles(address account) public {
         vm.assume(account != address(this));
         vm.prank(account);
         eud.grantRole(DEFAULT_ADMIN_ROLE, account);
