@@ -332,7 +332,7 @@ contract EUITest is Test
     }
 
     function testApproveEui(address account, uint256 amount) public {
-        vm.assume(account != address(0));
+        vm.assume(account != address(0) && account != address(this));
         eui.grantRole(keccak256("MINT_ROLE"), address(this));
         eui.grantRole(keccak256("ALLOWLIST_ROLE"), address(this));
         eui.addToAllowlist(address(this));
@@ -459,14 +459,6 @@ contract EUITest is Test
     }
 
     function testFlipToEui(address owner, address receiver, uint256 amount, uint256 price) public {
-        
-        // Assumes
-        vm.assume(amount < 1e39);
-        vm.assume(price != 0 && price < 1e39);
-        vm.assume(owner != address(0) && receiver != address(0) && owner != receiver);
-        vm.assume(owner != address(this) && receiver != address(this));
-        vm.assume(amount != 0);
-
         // Setup
         EUD eudNew = new EUD();
         eudNew.initialize();
@@ -476,6 +468,14 @@ contract EUITest is Test
 
         EUI euiNew = new EUI();
         euiNew.initialize(address(eudNew), address(yieldOracleNew));
+
+        // Assumes
+        vm.assume(amount < 1e39);
+        vm.assume(price != 0 && price < 1e39);
+        vm.assume(owner != address(0) && receiver != address(0) && owner != receiver);
+        vm.assume(owner != address(this) && receiver != address(this));
+        vm.assume(owner != address(euiNew) && receiver != address(euiNew));
+        vm.assume(amount != 0);
 
         // Set Roles
         eudNew.grantRole(keccak256("MINT_ROLE"), address(this));
@@ -497,12 +497,6 @@ contract EUITest is Test
     }
 
     function testFlipToEud(address owner, address receiver, uint256 amount, uint256 price) public {
-        // Assumes
-        vm.assume(amount < 1e39);
-        vm.assume(price < 1e39);
-        vm.assume(owner != address(0) && receiver != address(0) && owner != receiver);
-        vm.assume(owner != address(this) && receiver != address(this));
-
         // Setup
         EUD eudNew = new EUD();
         eudNew.initialize();
@@ -510,6 +504,13 @@ contract EUITest is Test
         yieldOracleNew.adminUpdateOldPrice(price);
         EUI euiNew = new EUI();
         euiNew.initialize(address(eudNew), address(yieldOracleNew));
+
+        // Assumes
+        vm.assume(amount < 1e39);
+        vm.assume(price < 1e39);
+        vm.assume(owner != address(0) && receiver != address(0) && owner != receiver);
+        vm.assume(owner != address(this) && receiver != address(this));
+        vm.assume(owner != address(euiNew) && receiver != address(euiNew));
 
         // Set Roles
         euiNew.grantRole(keccak256("MINT_ROLE"), address(this));
@@ -531,13 +532,6 @@ contract EUITest is Test
     }
 
     function testFailFlipToEuiNotAuthorized(address owner, address receiver, uint256 amount, uint256 price) public {
-        // Assumes
-        vm.assume(amount < 1e39);
-        vm.assume(price < 1e39);
-        vm.assume(owner != address(0) && receiver != address(0) && owner != receiver);
-        vm.assume(owner != address(this) && receiver != address(this));
-        vm.assume(amount != 0);
-
         // Setup
         EUD eudNew = new EUD();
         eudNew.initialize();
@@ -545,6 +539,14 @@ contract EUITest is Test
         yieldOracleNew.adminUpdateCurrentPrice(price);
         EUI euiNew = new EUI();
         euiNew.initialize(address(eudNew), address(yieldOracleNew));
+
+        // Assumes
+        vm.assume(amount < 1e39);
+        vm.assume(price < 1e39);
+        vm.assume(owner != address(0) && receiver != address(0) && owner != receiver);
+        vm.assume(owner != address(this) && receiver != address(this));
+        vm.assume(amount != 0);
+        vm.assume(owner != address(euiNew) && receiver != address(euiNew));
 
         // Set Roles
         eudNew.grantRole(keccak256("MINT_ROLE"), address(this));
@@ -564,12 +566,6 @@ contract EUITest is Test
     }
 
     function testFailFlipToEudNotAuthorized(address owner, address receiver, uint256 amount, uint256 price) public {
-        // Assumes
-        vm.assume(amount < 1e39);
-        vm.assume(price < 1e39);
-        vm.assume(owner != address(0) && receiver != address(0) && owner != receiver);
-        vm.assume(owner != address(this) && receiver != address(this));
-
         // Setup
         EUD eudNew = new EUD();
         eudNew.initialize();
@@ -577,6 +573,13 @@ contract EUITest is Test
         yieldOracleNew.adminUpdateOldPrice(price);
         EUI euiNew = new EUI();
         euiNew.initialize(address(eudNew), address(yieldOracleNew));
+
+        // Assumes
+        vm.assume(amount < 1e39);
+        vm.assume(price < 1e39);
+        vm.assume(owner != address(0) && receiver != address(0) && owner != receiver);
+        vm.assume(owner != address(this) && receiver != address(this));
+        vm.assume(owner != address(euiNew) && receiver != address(euiNew));
 
         // Set Roles
         euiNew.grantRole(keccak256("MINT_ROLE"), address(this));
