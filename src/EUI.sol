@@ -1,4 +1,5 @@
 // SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
+// SPDX-License-Identifier: MIT
 pragma solidity ^0.8.12;
 
 import "oz-up/security/PausableUpgradeable.sol";
@@ -426,7 +427,7 @@ contract EUI is
         uint256 euiMintAmount = yieldOracle.fromEudToEui(amount);
         require(eud.transferFrom(owner, address(this), amount), "EUD transfer failed");
         eud.burn(address(this), amount);
-        mintEUI(receiver, euiMintAmount);
+        _mint(receiver, euiMintAmount);
         return euiMintAmount;
     }
 
@@ -444,8 +445,8 @@ contract EUI is
         uint256 amount
     ) public whenNotPaused returns (uint256) {
         uint256 eudMintAmount = yieldOracle.fromEuiToEud(amount);
-        require(transferFrom(owner, address(this), amount), "EUI transfer failed");
-        burnEUI(address(this), amount);
+        require(this.transferFrom(owner, address(this), amount), "EUI transfer failed");
+        _burn(address(this), amount);
         eud.mint(receiver, eudMintAmount);
         return eudMintAmount;
     }

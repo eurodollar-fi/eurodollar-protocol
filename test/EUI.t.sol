@@ -5,9 +5,14 @@ import {ERC1967Proxy} from "oz/proxy/ERC1967/ERC1967Proxy.sol";
 import {IEUD} from "../interfaces/IEUD.sol";
 import {IYieldOracle} from "../interfaces/IYieldOracle.sol";
 import {EUI} from "../src/EUI.sol";
+import {EUD} from "../src/EUD.sol";
+import {YieldOracle} from "../src/YieldOracle.sol";
+import "oz/utils/math/Math.sol";
 
 contract EUITest is Test
 {
+    using Math for uint256;
+
     EUI public eui;
     address public eud;
     address public yieldOracle;
@@ -149,7 +154,7 @@ contract EUITest is Test
     }
 
     function testTransferEui(address account, uint256 amount) public {
-        vm.assume(account != address(0));
+        vm.assume(account != address(0) && account != address(this));
         eui.grantRole(keccak256("MINT_ROLE"), address(this));
         eui.grantRole(keccak256("ALLOWLIST_ROLE"), address(this));
         eui.addToAllowlist(address(this));
@@ -452,4 +457,142 @@ contract EUITest is Test
         address(proxy).call(abi.encodeWithSignature("grantRole(bytes32,address)", DEFAULT_ADMIN_ROLE, address(this)));
         address(proxy).call(abi.encodeWithSignature("upgradeTo(address)", DEFAULT_ADMIN_ROLE, newImplementation));
     }
+
+    function testFlipToEui(address owner, address receiver, uint256 amount, uint256 price) public {
+        
+        // Assumes
+        vm.assume(amount < 1e39);
+        vm.assume(price != 0 && price < 1e39);
+        vm.assume(owner != address(0) && receiver != address(0) && owner != receiver);
+        vm.assume(owner != address(this) && receiver != address(this));
+        vm.assume(amount != 0);
+
+        // Setup
+        EUD eudNew = new EUD();
+        eudNew.initialize();
+
+        YieldOracle yieldOracleNew = new YieldOracle();
+        yieldOracleNew.adminUpdateCurrentPrice(price);
+
+        EUI euiNew = new EUI();
+        euiNew.initialize(address(eudNew), address(yieldOracleNew));
+
+        // Set Roles
+        eudNew.grantRole(keccak256("MINT_ROLE"), address(this));
+        eudNew.grantRole(keccak256("MINT_ROLE"), address(euiNew));
+        eudNew.grantRole(keccak256("BURN_ROLE"), address(euiNew));
+        euiNew.grantRole(keccak256("ALLOWLIST_ROLE"), address(this));
+        euiNew.addToAllowlist(owner);
+        euiNew.addToAllowlist(receiver);
+        euiNew.addToAllowlist(address(eudNew));
+
+        // Test
+        eudNew.mint(owner, amount);
+        assertEq(eudNew.balanceOf(owner), amount);
+        vm.startPrank(owner);
+        eudNew.approve(address(euiNew), amount);
+        euiNew.flipToEUI(owner, receiver, amount);
+        vm.stopPrank();
+        assertEq(euiNew.balanceOf(receiver), amount.mulDiv(1e18, price, Math.Rounding.Down));
+    }
+
+    function testFlipToEud(address owner, address receiver, uint256 amount, uint256 price) public {
+        // Assumes
+        vm.assume(amount < 1e39);
+        vm.assume(price < 1e39);
+        vm.assume(owner != address(0) && receiver != address(0) && owner != receiver);
+        vm.assume(owner != address(this) && receiver != address(this));
+
+        // Setup
+        EUD eudNew = new EUD();
+        eudNew.initialize();
+        YieldOracle yieldOracleNew = new YieldOracle();
+        yieldOracleNew.adminUpdateOldPrice(price);
+        EUI euiNew = new EUI();
+        euiNew.initialize(address(eudNew), address(yieldOracleNew));
+
+        // Set Roles
+        euiNew.grantRole(keccak256("MINT_ROLE"), address(this));
+        eudNew.grantRole(keccak256("MINT_ROLE"), address(euiNew));
+        eudNew.grantRole(keccak256("BURN_ROLE"), address(euiNew));
+        euiNew.grantRole(keccak256("ALLOWLIST_ROLE"), address(this));
+        euiNew.addToAllowlist(owner);
+        euiNew.addToAllowlist(receiver);
+        euiNew.addToAllowlist(address(euiNew));
+
+        // Test
+        euiNew.mintEUI(owner, amount);
+        assertEq(euiNew.balanceOf(owner), amount);
+        vm.startPrank(owner);
+        euiNew.approve(address(euiNew), amount);
+        euiNew.flipToEUD(owner, receiver, amount);
+        vm.stopPrank();
+        assertEq(eudNew.balanceOf(receiver), amount.mulDiv(price, 1e18, Math.Rounding.Down));
+    }
+
+    function testFailFlipToEuiNotAuthorized(address owner, address receiver, uint256 amount, uint256 price) public {
+        // Assumes
+        vm.assume(amount < 1e39);
+        vm.assume(price < 1e39);
+        vm.assume(owner != address(0) && receiver != address(0) && owner != receiver);
+        vm.assume(owner != address(this) && receiver != address(this));
+        vm.assume(amount != 0);
+
+        // Setup
+        EUD eudNew = new EUD();
+        eudNew.initialize();
+        YieldOracle yieldOracleNew = new YieldOracle();
+        yieldOracleNew.adminUpdateCurrentPrice(price);
+        EUI euiNew = new EUI();
+        euiNew.initialize(address(eudNew), address(yieldOracleNew));
+
+        // Set Roles
+        eudNew.grantRole(keccak256("MINT_ROLE"), address(this));
+        eudNew.grantRole(keccak256("MINT_ROLE"), address(euiNew));
+        eudNew.grantRole(keccak256("BURN_ROLE"), address(euiNew));
+        euiNew.grantRole(keccak256("ALLOWLIST_ROLE"), address(this));
+        euiNew.addToAllowlist(owner);
+        euiNew.addToAllowlist(receiver);
+        euiNew.addToAllowlist(address(eudNew));
+
+        // Test
+        eudNew.mint(owner, amount);
+        assertEq(eudNew.balanceOf(owner), amount);
+        eudNew.approve(address(euiNew), amount);
+        euiNew.flipToEUI(owner, receiver, amount);
+        assertEq(euiNew.balanceOf(receiver), amount.mulDiv(1e18, price, Math.Rounding.Down));
+    }
+
+    function testFailFlipToEudNotAuthorized(address owner, address receiver, uint256 amount, uint256 price) public {
+        // Assumes
+        vm.assume(amount < 1e39);
+        vm.assume(price < 1e39);
+        vm.assume(owner != address(0) && receiver != address(0) && owner != receiver);
+        vm.assume(owner != address(this) && receiver != address(this));
+
+        // Setup
+        EUD eudNew = new EUD();
+        eudNew.initialize();
+        YieldOracle yieldOracleNew = new YieldOracle();
+        yieldOracleNew.adminUpdateOldPrice(price);
+        EUI euiNew = new EUI();
+        euiNew.initialize(address(eudNew), address(yieldOracleNew));
+
+        // Set Roles
+        euiNew.grantRole(keccak256("MINT_ROLE"), address(this));
+        eudNew.grantRole(keccak256("MINT_ROLE"), address(euiNew));
+        eudNew.grantRole(keccak256("BURN_ROLE"), address(euiNew));
+        euiNew.grantRole(keccak256("ALLOWLIST_ROLE"), address(this));
+        euiNew.addToAllowlist(owner);
+        euiNew.addToAllowlist(receiver);
+        euiNew.addToAllowlist(address(euiNew));
+
+        // Test
+        euiNew.mintEUI(owner, amount);
+        assertEq(euiNew.balanceOf(owner), amount);
+        euiNew.approve(address(euiNew), amount);
+        euiNew.flipToEUD(owner, receiver, amount);
+        assertEq(eudNew.balanceOf(receiver), amount.mulDiv(price, 1e18, Math.Rounding.Down));
+    }
+
 }
