@@ -1,3 +1,6 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
+
 pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
@@ -41,7 +44,6 @@ contract EUDTest is Test
 
     function testFailMintEudNotAuthorized(uint256 amount) public {
         eud.mint(address(this), amount);
-        vm.expectRevert("AccessControl: account");
     }
 
     function testFailBurnEudNotAuthorized(uint256 amount) public {
@@ -381,8 +383,8 @@ contract EUDTest is Test
     }
 
     function testFailPermitTooLate(uint8 privateKey, address receiver, uint256 amount, uint256 deadline) public {
+        deadline = bound(deadline, 0, UINT256_MAX);
         vm.assume(privateKey != 0);
-        vm.assume(deadline < UINT256_MAX);
         vm.assume(receiver != address(0));
         address owner = vm.addr(privateKey);
         vm.assume(owner != receiver);

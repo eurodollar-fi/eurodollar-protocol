@@ -4,6 +4,8 @@ pragma solidity ^0.8.12;
 interface IEUD {
     function decimals() external view returns (uint8);
 
+    function balanceOf(address account) external view returns (uint256);
+
     function allowance(
         address owner,
         address spender

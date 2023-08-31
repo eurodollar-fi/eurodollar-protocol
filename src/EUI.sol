@@ -1,5 +1,6 @@
-// SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
 // SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
+
 pragma solidity ^0.8.12;
 
 import "oz-up/security/PausableUpgradeable.sol";
@@ -570,7 +571,8 @@ contract EUI is
         address receiver
     ) public virtual returns (uint256) {
         require(shares <= maxMint(receiver), "ERC4626: mint more than max");
-        uint256 assets = flipToEUD(msg.sender, receiver, shares);
+        uint256 assetAmount = _convertToAssets(shares);
+        uint256 assets = flipToEUI(msg.sender, receiver, assetAmount);
         return assets;
     }
 
@@ -584,6 +586,9 @@ contract EUI is
      * @return  uint256  The maximum amount of assets (EUD) that the owner can withdraw based on their EUI balance.
      */
     function maxWithdraw(address owner) public view virtual returns (uint256) {
+        if(paused()){
+            return 0;
+        }
         return _convertToAssets(balanceOf(owner));
     }
 
@@ -636,6 +641,9 @@ contract EUI is
      * @return  uint256  The maximum amount of shares (EUI) that can be redeemed by the owner.
      */
     function maxRedeem(address owner) public view virtual returns (uint256) {
+        // if(paused()){
+        //     return 0;
+        // }
         return balanceOf(owner);
     }
 
@@ -668,9 +676,7 @@ contract EUI is
         address owner
     ) public virtual returns (uint256) {
         require(shares <= maxRedeem(owner), "ERC4626: redeem more than max");
-        uint256 assetsAmount = _convertToAssets(shares);
-        flipToEUI(owner, receiver, assetsAmount);
-        return assetsAmount;
+        flipToEUD(owner, receiver, shares);
     }
 
     /**

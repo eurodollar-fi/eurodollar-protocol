@@ -1,4 +1,6 @@
+// SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
+
 pragma solidity ^0.8.12;
 import "oz/security/Pausable.sol";
 import "oz/access/AccessControl.sol";
