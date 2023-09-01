@@ -284,13 +284,14 @@ contract EUDTest is Test, Constants
 
     function testFailUnauthorizedReclaim(address account1, address account2, uint256 amount) public {
         vm.assume(account1 != address(0));
+        vm.assume(account2 != address(this));
         eud.mint(account1, amount);
         assertEq(eud.balanceOf(account1), amount);
-        vm.prank(account2);
+        vm.startPrank(account2);
         eud.reclaim(account1, account2, amount);
         assertEq(eud.balanceOf(account2), amount);
-        vm.prank(account2);
         eud.transfer(address(this), amount);
+        vm.stopPrank();
         assertEq(eud.balanceOf(address(this)), amount);
     }
 
