@@ -385,7 +385,7 @@ contract EUI is
     }
 
     function addManyToAllowlist(
-        address[] memory accounts
+        address[] calldata accounts
     ) external onlyRole(ALLOW_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
             _addToAllowlist(accounts[i]);
@@ -411,7 +411,7 @@ contract EUI is
      * @param   accounts The address to be removed from the allowlist.
      */
     function removeManyFromAllowlist(
-        address[] memory accounts
+        address[] calldata accounts
     ) external onlyRole(ALLOW_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
             _removeFromAllowlist(accounts[i]);
@@ -455,7 +455,7 @@ contract EUI is
      * @dev     Returns the total assets held in the vault, converted from the total supply of shares (EUI).
      * @return  uint256  The total assets held in the vault.
      */
-    function totalAssets() external view virtual returns (uint256) {
+    function totalAssets() external view returns (uint256) {
         return _convertToAssets(totalSupply());
     }
 
@@ -467,7 +467,7 @@ contract EUI is
      */
     function convertToShares(
         uint256 assets
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         return _convertToShares(assets);
     }
 
@@ -479,7 +479,7 @@ contract EUI is
      */
     function convertToAssets(
         uint256 shares
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         return _convertToAssets(shares);
     }
 
@@ -493,7 +493,7 @@ contract EUI is
      */
     function maxDeposit(
         address receiver
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         return type(uint256).max;
     }
 
@@ -506,7 +506,7 @@ contract EUI is
      */
     function previewDeposit(
         uint256 assets
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         return _convertToShares(assets);
     }
 
@@ -522,7 +522,7 @@ contract EUI is
     function deposit(
         uint256 assets,
         address receiver
-    ) public virtual returns (uint256) {
+    ) public returns (uint256) {
         require(
             assets <= maxDeposit(receiver),
             "ERC4626: deposit more than max"
@@ -583,7 +583,7 @@ contract EUI is
      * @param   owner  The address of the owner whose maximum withdrawal amount is queried.
      * @return  uint256  The maximum amount of assets (EUD) that the owner can withdraw based on their EUI balance.
      */
-    function maxWithdraw(address owner) public view virtual returns (uint256) {
+    function maxWithdraw(address owner) public view returns (uint256) {
         if(paused()){
             return 0;
         }
@@ -599,7 +599,7 @@ contract EUI is
      */
     function previewWithdraw(
         uint256 assets
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         return _convertToShares(assets);
     }
 
@@ -618,7 +618,7 @@ contract EUI is
         uint256 assets,
         address receiver,
         address owner
-    ) public virtual returns (uint256) {
+    ) public returns (uint256) {
         require(
             assets <= maxWithdraw(owner),
             "ERC4626: withdraw more than max"
@@ -654,7 +654,7 @@ contract EUI is
      */
     function previewRedeem(
         uint256 shares
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         return _convertToAssets(shares);
     }
 
@@ -672,7 +672,7 @@ contract EUI is
         uint256 shares,
         address receiver,
         address owner
-    ) public virtual returns (uint256) {
+    ) public returns (uint256) {
         require(shares <= maxRedeem(owner), "ERC4626: redeem more than max");
         flipToEUD(owner, receiver, shares);
     }
@@ -687,7 +687,7 @@ contract EUI is
      */
     function _convertToShares(
         uint256 assets
-    ) internal view virtual returns (uint256) {
+    ) internal view returns (uint256) {
         return yieldOracle.fromEudToEui(assets);
     }
 
@@ -701,7 +701,7 @@ contract EUI is
      */
     function _convertToAssets(
         uint256 shares
-    ) internal view virtual returns (uint256) {
+    ) internal view returns (uint256) {
         return yieldOracle.fromEuiToEud(shares);
     }
 }

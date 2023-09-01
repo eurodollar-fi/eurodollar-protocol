@@ -334,7 +334,7 @@ contract EUD is
      * @param   accounts An array of addresses to be removed from the blocklist.
      */
     function removeManyFromBlocklist(
-        address[] memory accounts
+        address[] calldata accounts
     ) external onlyRole(BLOCK_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
             _removeFromBlocklist(accounts[i]);
