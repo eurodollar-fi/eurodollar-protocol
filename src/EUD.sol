@@ -26,11 +26,11 @@ contract EUD is
     mapping(address => uint256) public frozenBalances;
 
     // Roles
-    bytes32 public constant PAUSE_ROLE      = keccak256("PAUSE_ROLE");
-    bytes32 public constant MINT_ROLE       = keccak256("MINT_ROLE");
-    bytes32 public constant BURN_ROLE       = keccak256("BURN_ROLE");
-    bytes32 public constant BLOCKLIST_ROLE  = keccak256("BLOCKLIST_ROLE");
-    bytes32 public constant FREEZE_ROLE     = keccak256("FREEZE_ROLE");
+    bytes32 public constant PAUSE_ROLE  = keccak256("PAUSE_ROLE");
+    bytes32 public constant MINT_ROLE   = keccak256("MINT_ROLE");
+    bytes32 public constant BURN_ROLE   = keccak256("BURN_ROLE");
+    bytes32 public constant BLOCK_ROLE  = keccak256("BLOCK_ROLE");
+    bytes32 public constant FREEZE_ROLE = keccak256("FREEZE_ROLE");
 
     /**
      * @notice  The function using this modifier will only execute if the account is not blocked.
@@ -291,20 +291,24 @@ contract EUD is
      * @param   account The address to be added to the blocklist.
      */
     function _addToBlocklist(address account) internal {
-        require(!blocklist[account], "account is already in blocklist");
         blocklist[account] = true;
         emit AddedToBlocklist(account);
     }
 
+    function _removeFromBlocklist(address account) internal {
+        blocklist[account] = false;
+        emit RemovedFromBlocklist(account);
+    }
+
     function addToBlocklist(
         address account
-    ) external onlyRole(BLOCKLIST_ROLE) {
+    ) external onlyRole(BLOCK_ROLE) {
         _addToBlocklist(account); 
     }
 
     function removeFromBlocklist(
         address account
-    ) external onlyRole(BLOCKLIST_ROLE) {
+    ) external onlyRole(BLOCK_ROLE) {
         _removeFromBlocklist(account); 
     }
 
@@ -315,17 +319,11 @@ contract EUD is
      * @param   accounts An array of addresses to be added to the blocklist.
      */
     function addManyToBlocklist(
-        address[] memory accounts
-    ) external onlyRole(BLOCKLIST_ROLE) {
+        address[] calldata accounts
+    ) external onlyRole(BLOCK_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
             _addToBlocklist(accounts[i]);
         }
-    }
-
-    function _removeFromBlocklist(address account) internal {
-        require(blocklist[account], "account is not blocked");
-        blocklist[account] = false;
-        emit RemovedFromBlocklist(account);
     }
 
     /**
@@ -335,10 +333,9 @@ contract EUD is
      * @dev     Allows the `BLOCKLIST_ROLE` to remove an address from the blocklist.
      * @param   accounts An array of addresses to be removed from the blocklist.
      */
-
     function removeManyFromBlocklist(
         address[] memory accounts
-    ) external onlyRole(BLOCKLIST_ROLE) {
+    ) external onlyRole(BLOCK_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
             _removeFromBlocklist(accounts[i]);
         }
