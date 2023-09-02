@@ -450,6 +450,8 @@ contract EUI is
         return eudMintAmount;
     }
 
+
+    /// ---------- ERC4626 FUNCTIONS ---------- ///
     /**
      * @notice  This function provides the total assets currently held in the vault, which are calculated by converting the total supply of shares (EUI) into assets (EUD) using the current exchange rate.
      * @dev     Returns the total assets held in the vault, converted from the total supply of shares (EUI).
@@ -523,10 +525,10 @@ contract EUI is
         uint256 assets,
         address receiver
     ) public returns (uint256) {
-        require(
-            assets <= maxDeposit(receiver),
-            "ERC4626: deposit more than max"
-        );
+        // require(
+        //     assets <= maxDeposit(receiver),      THIS IS UINT256_MAX, so no reason to check
+        //     "ERC4626: deposit more than max"
+        // );
         uint256 shares = flipToEUI(msg.sender, receiver, assets);
         emit Deposit(msg.sender, receiver, assets, shares);
         return shares;
@@ -568,7 +570,7 @@ contract EUI is
         uint256 shares,
         address receiver
     ) public returns (uint256) {
-        require(shares <= maxMint(receiver), "ERC4626: mint more than max");
+        // require(shares <= maxMint(receiver), "ERC4626: mint more than max"); THIS IS UINT256_MAX NO REASON TO CHECK
         uint256 assetAmount = _convertToAssets(shares);
         uint256 assets = flipToEUI(msg.sender, receiver, assetAmount);
         return assets;
@@ -587,7 +589,7 @@ contract EUI is
         if(paused()){
             return 0;
         }
-        return _convertToAssets(balanceOf(owner));
+        return _convertToAssets(this.balanceOf(owner));
     }
 
     /**
@@ -619,14 +621,15 @@ contract EUI is
         address receiver,
         address owner
     ) public returns (uint256) {
-        require(
-            assets <= maxWithdraw(owner),
-            "ERC4626: withdraw more than max"
-        );
-
+        // require(
+        //     assets <= maxWithdraw(owner),
+        //     "ERC4626: withdraw more than max"
+        // );
         uint256 sharesAmount = _convertToShares(assets);
-        flipToEUD(owner, receiver, sharesAmount);
-        return sharesAmount;
+        require(this.transferFrom(owner, address(this), sharesAmount), "EUI transfer failed");
+        _burn(address(this), sharesAmount);
+        eud.mint(receiver, assets);
+        return assets;
     }
 
     // Redeem
