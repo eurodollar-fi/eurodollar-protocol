@@ -1,4 +1,6 @@
+// SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
+
 pragma solidity ^0.8.19;
 
 import {Script} from "forge-std/Script.sol";
@@ -9,27 +11,31 @@ import {ERC1967Proxy} from "oz/proxy/ERC1967/ERC1967Proxy.sol";
 
 contract Deploy is Script {
 
+    bytes32 constant DEFAULT_ADMIN_ROLE = keccak256("DEFAULT_ADMIN_ROLE");
+
     function run() external returns (address, address, address) {
-        address yieldOracle = deployYieldOracle();
-        address eud = deployEUD();
-        address eui = deployEUI(eud, yieldOracle);
+        address yieldOracle = _deployYieldOracle();
+        address eud = _deployEUD();
+        address eui = _deployEUI(eud, yieldOracle);
         return (eud, eui, yieldOracle);
     }
 
-    function deployYieldOracle() public returns (address) {
+    function _deployYieldOracle() internal returns (address) {
         vm.startBroadcast();
         YieldOracle oracle = new YieldOracle();
         vm.stopBroadcast();
         return address(oracle);
     }
 
-    function deployEUD() public returns (address) {
+    function _deployEUD() internal returns (address) {
         vm.startBroadcast();
         EUD eud = new EUD();
-        ERC1967Proxy eudproxy = new ERC1967Proxy(address(eud), abi.encodeWithSelector(EUD(address(0)).initialize.selector));
-        return address(eudproxy);
+        ERC1967Proxy eudProxy = new ERC1967Proxy(address(eud), abi.encodeWithSelector(EUD(address(0)).initialize.selector));
+        address(eudProxy).call(abi.encodeWithSignature("grantRole(bytes32,address)", DEFAULT_ADMIN_ROLE, address(this)));
+        
+        return address(eudProxy);
     }
-    function deployEUI(address eud, address yieldOracle) public returns (address) {
+    function _deployEUI(address eud, address yieldOracle) internal returns (address) {
         vm.startBroadcast();
         EUI eui = new EUI();
         ERC1967Proxy euiproxy = new ERC1967Proxy(address(eui), abi.encodeWithSelector(EUI(address(0)).initialize.selector, eud, yieldOracle));

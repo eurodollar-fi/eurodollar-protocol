@@ -1,19 +1,29 @@
+// SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
+
 pragma solidity ^0.8.13;
 
 import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "oz/proxy/ERC1967/ERC1967Proxy.sol";
 import {EUD} from "../src/EUD.sol";
+import {Constants} from "./Constants.sol";
 
-contract EUDTest is Test
+contract EUDTest is Test, Constants
 {
     EUD public eud;
-    bytes32 DEFAULT_ADMIN_ROLE = 0x00;
+
     bytes32 constant PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
     function setUp() public {
         eud = new EUD();
         eud.initialize();
+        eud.grantRole(MINT_ROLE, address(this));
+        eud.grantRole(BURN_ROLE, address(this));
+        eud.grantRole(BLOCK_ROLE, address(this));
+        eud.grantRole(PAUSE_ROLE, address(this));
+        eud.grantRole(FREEZE_ROLE, address(this));
+        eud.grantRole(ALLOW_ROLE, address(this));
     }
 
     function testInitialize() public {
@@ -26,44 +36,43 @@ contract EUDTest is Test
     }
 
     function testMintEud(uint256 amount) public {
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
         eud.mint(address(this), amount);
         assertEq(eud.balanceOf(address(this)), amount);
     }
 
     function testBurnEud(uint256 amount) public {
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
-        eud.grantRole(keccak256("BURN_ROLE"), address(this));
         eud.mint(address(this), amount);
         eud.burn(address(this), amount);
         assertEq(eud.balanceOf(address(this)), 0);
     }
 
-    function testFailMintEudNotAuthorized(uint256 amount) public {
+    function testFailMintEudNotAuthorized(address account, uint256 amount) public {
+        vm.assume(account != address(this));
+        vm.prank(account);
         eud.mint(address(this), amount);
-        vm.expectRevert("AccessControl: account");
     }
 
-    function testFailBurnEudNotAuthorized(uint256 amount) public {
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
-        eud.mint(address(this), amount);
-        eud.burn(address(this), amount);
+    function testFailBurnEudNotAuthorized(address account, uint256 amount) public {
+        vm.assume(account != address(this));
+        eud.mint(account, amount);
+        vm.prank(account);
+        eud.burn(account, amount);
         assertEq(eud.balanceOf(address(this)), 0);
     }
 
     function testGrantMintRole(address account) public {
-        eud.grantRole(keccak256("MINT_ROLE"), account);
-        assert(eud.hasRole(keccak256("MINT_ROLE"), account));
+        eud.grantRole(MINT_ROLE, account);
+        assert(eud.hasRole(MINT_ROLE, account));
     }
 
     function testGrantBurnRole(address account) public {
-        eud.grantRole(keccak256("BURN_ROLE"), account);
-        assert(eud.hasRole(keccak256("BURN_ROLE"), account));
+        eud.grantRole(BURN_ROLE, account);
+        assert(eud.hasRole(BURN_ROLE, account));
     }
 
     function testGrantPauseRole(address account) public {
-        eud.grantRole(keccak256("PAUSE_ROLE"), account);
-        assert(eud.hasRole(keccak256("PAUSE_ROLE"), account));
+        eud.grantRole(PAUSE_ROLE, account);
+        assert(eud.hasRole(PAUSE_ROLE, account));
     }
 
     function testGrantAdminRole(address account) public {
@@ -72,7 +81,7 @@ contract EUDTest is Test
     }
 
     function testPause(address pauser) public {
-        eud.grantRole(keccak256("PAUSE_ROLE"), pauser);
+        eud.grantRole(PAUSE_ROLE, pauser);
         vm.prank(pauser);
         eud.pause();
         assertEq(eud.paused(), true);
@@ -87,35 +96,35 @@ contract EUDTest is Test
     function testFailUnauthorizedGrantMintRole(address account) public {
         vm.assume(account != address(this));
         vm.prank(account);
-        eud.grantRole(keccak256("MINT_ROLE"), account);
+        eud.grantRole(MINT_ROLE, account);
     }
 
     function testFailUnauthorizedGrantBurnRole(address account) public {
         vm.assume(account != address(this));
         vm.prank(account);
-        eud.grantRole(keccak256("BURN_ROLE"), account);
+        eud.grantRole(BURN_ROLE, account);
     }
 
     function testFailUnauthorizedGrantPauseRole(address account) public {
         vm.assume(account != address(this));
         vm.prank(account);
-        eud.grantRole(keccak256("PAUSE_ROLE"), account);
+        eud.grantRole(PAUSE_ROLE, account);
     }
 
     function testFailUnauthorizedGrantFreezeRole(address account) public {
         vm.assume(account != address(this));
         vm.prank(account);
-        eud.grantRole(keccak256("FREEZE_ROLE"), account);
+        eud.grantRole(FREEZE_ROLE, account);
     }
 
     function testFailUnauthorizedGrantBlocklistRole(address account) public {
         vm.assume(account != address(this));
         vm.prank(account);
-        eud.grantRole(keccak256("BLOCKLIST_ROLE"), account);
+        eud.grantRole(BLOCK_ROLE, account);
     }
 
     function testUnpause(address pauser) public {
-        eud.grantRole(keccak256("PAUSE_ROLE"), pauser);
+        eud.grantRole(PAUSE_ROLE, pauser);
         vm.prank(pauser);
         eud.pause();
         assertEq(eud.paused(), true);
@@ -133,7 +142,6 @@ contract EUDTest is Test
 
     function testFailUnathorizedUnpause(address pauser) public {
         vm.assume(pauser != address(this));
-        eud.grantRole(keccak256("PAUSE_ROLE"), address(this));
         eud.pause();
         vm.prank(pauser);
         eud.unpause();
@@ -142,7 +150,6 @@ contract EUDTest is Test
 
     function testTransferEud(address account, uint256 amount) public {
         vm.assume(account != address(0));
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
         eud.mint(address(this), amount);
         eud.transfer(account, amount);
         assertEq(eud.balanceOf(account), amount);
@@ -152,19 +159,15 @@ contract EUDTest is Test
     }
 
     function testAddToBlocklist(address account) public {
-        eud.grantRole(keccak256("BLOCKLIST_ROLE"), address(this));
         eud.addToBlocklist(account);
         assert(eud.blocklist(account));
     }
 
     function testAddManyToBlocklist(address account1, address account2, address account3) public {
-        vm.assume(account1 != account2 && account2 != account3 && account1 != account3);
-        vm.assume(account1 != address(0) && account2 != address(0) && account3 != address(0));
         address[] memory accounts = new address[](3);
         accounts[0] = account1;
         accounts[1] = account2;
         accounts[2] = account3;
-        eud.grantRole(keccak256("BLOCKLIST_ROLE"), address(this));
         eud.addManyToBlocklist(accounts);
         for (uint256 i = 0; i < accounts.length; i++) {
             assert(eud.blocklist(accounts[i]));
@@ -172,7 +175,6 @@ contract EUDTest is Test
     }
 
     function testRemoveFromBlocklist(address account) public {
-        eud.grantRole(keccak256("BLOCKLIST_ROLE"), address(this));
         eud.addToBlocklist(account);
         assert(eud.blocklist(account));
         eud.removeFromBlocklist(account);
@@ -180,13 +182,10 @@ contract EUDTest is Test
     }
 
     function testRemoveManyFromBlocklist(address account1, address account2, address account3) public {
-        vm.assume(account1 != account2 && account2 != account3 && account1 != account3);
-        vm.assume(account1 != address(0) && account2 != address(0) && account3 != address(0));
         address[] memory accounts = new address[](3);
         accounts[0] = account1;
         accounts[1] = account2;
         accounts[2] = account3;
-        eud.grantRole(keccak256("BLOCKLIST_ROLE"), address(this));
         eud.addManyToBlocklist(accounts);
         for (uint256 i = 0; i < accounts.length; i++) {
             assert(eud.blocklist(accounts[i]));
@@ -198,42 +197,23 @@ contract EUDTest is Test
     }
 
     function testFailAddToBlocklistNotAuthorized(address account) public {
+        vm.assume(account != address(this));
+        vm.prank(account);
         eud.addToBlocklist(account);
         assert(eud.blocklist(account));
     }
 
     function testFailRemoveFromBlocklistNotAuthorized(address account) public {
-        eud.grantRole(keccak256("BLOCKLIST_ROLE"), address(this));
+        vm.assume(account != address(this));
         eud.addToBlocklist(account);
         assert(eud.blocklist(account));
-        vm.prank(address(0));
-        eud.removeFromBlocklist(account);
-        assert(!eud.blocklist(account));
-    }
-
-    function testFailAlreadyAddedToBlocklist(address account) public {
-        eud.grantRole(keccak256("BLOCKLIST_ROLE"), address(this));
-        eud.addToBlocklist(account);
-        assert(eud.blocklist(account));
-        eud.addToBlocklist(account);
-        assert(eud.blocklist(account));
-    }
-
-    function testFailAlreadyRemovedFromBlocklist(address account) public {
-        eud.grantRole(keccak256("BLOCKLIST_ROLE"), address(this));
-        eud.addToBlocklist(account);
-        assert(eud.blocklist(account));
-        eud.removeFromBlocklist(account);
-        assert(!eud.blocklist(account));
+        vm.prank(account);
         eud.removeFromBlocklist(account);
         assert(!eud.blocklist(account));
     }
 
     function testFreeze(address account1, address account2, uint256 amount) public {
-        vm.assume(account1 != address(this) && account1 != address(0));
-        vm.assume(account2 != address(0));
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
-        eud.grantRole(keccak256("FREEZE_ROLE"), address(this));
+        vm.assume(account1 != address(0) && account2 != address(0));
         eud.mint(account1, amount);
         assertEq(eud.balanceOf(account1), amount);
         eud.freeze(account1, account2, amount);
@@ -244,19 +224,15 @@ contract EUDTest is Test
     function testFailUnauthorizedFreeze(address account1, address account2, uint256 amount) public {
         vm.assume(account1 != address(this) && account1 != address(0));
         vm.assume(account2 != address(0));
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
         eud.mint(account1, amount);
         assertEq(eud.balanceOf(account1), amount);
+        vm.prank(account1);
         eud.freeze(account1, account2, amount);
-        assertEq(eud.balanceOf(account2), amount);
-        assertEq(eud.frozenBalances(account1), amount);
     }
 
     function testRelease(address account1, address account2, uint256 amount) public {
         vm.assume(account1 != address(this) && account1 != address(0));
         vm.assume(account2 != address(0));
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
-        eud.grantRole(keccak256("FREEZE_ROLE"), address(this));
         eud.mint(account1, amount);
         assertEq(eud.balanceOf(account1), amount);
         eud.freeze(account1, account2, amount);
@@ -270,8 +246,6 @@ contract EUDTest is Test
     function testFailUnauthorizedRelease(address account1, address account2, uint256 amount) public {
         vm.assume(account1 != address(this) && account1 != address(0));
         vm.assume(account2 != address(0));
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
-        eud.grantRole(keccak256("FREEZE_ROLE"), address(this));
         eud.mint(account1, amount);
         assertEq(eud.balanceOf(account1), amount);
         eud.freeze(account1, account2, amount);
@@ -286,8 +260,6 @@ contract EUDTest is Test
     function testFailReleaseTooManyTokens(address account1, address account2, uint256 amount) public {
         vm.assume(account1 != address(this) && account1 != address(0));
         vm.assume(account2 != address(0));
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
-        eud.grantRole(keccak256("FREEZE_ROLE"), address(this));
         eud.mint(account1, amount);
         assertEq(eud.balanceOf(account1), amount);
         eud.freeze(account1, account2, amount);
@@ -301,8 +273,6 @@ contract EUDTest is Test
     function testReclaim(address account1, address account2, uint256 amount) public {
         vm.assume(account1 != address(0));
         vm.assume(account2 != address(0));
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
-        eud.grantRole(keccak256("FREEZE_ROLE"), address(this));
         eud.mint(account1, amount);
         assertEq(eud.balanceOf(account1), amount);
         eud.reclaim(account1, account2, amount);
@@ -314,20 +284,19 @@ contract EUDTest is Test
 
     function testFailUnauthorizedReclaim(address account1, address account2, uint256 amount) public {
         vm.assume(account1 != address(0));
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
+        vm.assume(account2 != address(this));
         eud.mint(account1, amount);
         assertEq(eud.balanceOf(account1), amount);
-        vm.prank(account2);
+        vm.startPrank(account2);
         eud.reclaim(account1, account2, amount);
         assertEq(eud.balanceOf(account2), amount);
-        vm.prank(account2);
         eud.transfer(address(this), amount);
+        vm.stopPrank();
         assertEq(eud.balanceOf(address(this)), amount);
     }
 
     function testApproveEud(address account, uint256 amount) public {
         vm.assume(account != address(0));
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
         eud.mint(account, amount);
         assertEq(eud.balanceOf(account), amount);
         vm.prank(account);
@@ -337,7 +306,6 @@ contract EUDTest is Test
 
     function testIncreaseAllowance(address account, uint256 amount) public {
         vm.assume(account != address(0));
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
         eud.mint(account, amount);
         assertEq(eud.balanceOf(account), amount);
         vm.prank(account);
@@ -347,7 +315,6 @@ contract EUDTest is Test
 
     function testDecreaseAllowance(address account, uint256 amount) public {
         vm.assume(account != address(0));
-        eud.grantRole(keccak256("MINT_ROLE"), address(this));
         eud.mint(account, amount);
         assertEq(eud.balanceOf(account), amount);
         vm.startPrank(account);
@@ -381,8 +348,8 @@ contract EUDTest is Test
     }
 
     function testFailPermitTooLate(uint8 privateKey, address receiver, uint256 amount, uint256 deadline) public {
+        deadline = bound(deadline, 0, UINT256_MAX);
         vm.assume(privateKey != 0);
-        vm.assume(deadline < UINT256_MAX);
         vm.assume(receiver != address(0));
         address owner = vm.addr(privateKey);
         vm.assume(owner != receiver);

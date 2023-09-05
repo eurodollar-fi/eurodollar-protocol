@@ -1,5 +1,6 @@
-// SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
 // SPDX-License-Identifier: MIT
+// SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
+
 pragma solidity ^0.8.12;
 
 import "oz-up/security/PausableUpgradeable.sol";
@@ -36,7 +37,7 @@ contract EUI is
     bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
     bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
     bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
-    bytes32 public constant ALLOWLIST_ROLE = keccak256("ALLOWLIST_ROLE");
+    bytes32 public constant ALLOW_ROLE = keccak256("ALLOW_ROLE");
     bytes32 public constant FREEZE_ROLE = keccak256("FREEZE_ROLE");
 
     /**
@@ -45,7 +46,7 @@ contract EUI is
      * @dev     Modifier to check if the given account is allowed.
      * @param   account  The address to be checked for allowlisting.
      */
-    modifier verified(address account) {
+    modifier allowed(address account) {
         require(
             allowlist[account] == true,
             "Account is not on Allowlist"
@@ -114,7 +115,7 @@ contract EUI is
     /**
      * @notice  This function can only be called by an account with the `MINT_ROLE`.
      * @notice  It mints new tokens and assigns them to the specified recipient's account.
-     * @notice  The recipient's account must not be blocklisted and must be verified.
+     * @notice  The recipient's account must not be blocklisted and must be allowed.
      * @dev     Mints new tokens and adds them to the specified account.
      * @param   to  The address to receive the newly minted tokens.
      * @param   amount  The amount of tokens to mint and add to the account.
@@ -122,7 +123,7 @@ contract EUI is
     function mintEUI(
         address to,
         uint256 amount
-    ) public onlyRole(MINT_ROLE) verified(to) {
+    ) public onlyRole(MINT_ROLE) allowed(to) {
         _mint(to, amount);
     }
 
@@ -158,7 +159,7 @@ contract EUI is
 
     /**
      * @notice  This function overrides both ERC20Upgradeable `transfer` and IERC20Upgradeable `transfer` functions.
-     * @notice  It ensures that token transfers are allowed for verified accounts and not allowed for blocklisted accounts.
+     * @notice  It ensures that token transfers are allowed for allowed accounts and not allowed for blocklisted accounts.
      * @notice  The function returns `true` if the transfer is successful; otherwise, it reverts with an error.
      * @dev     Transfers a specific amount of tokens to the specified address.
      * @param   to  The address to which tokens will be transferred.
@@ -171,8 +172,8 @@ contract EUI is
     )
         public
         override(ERC20Upgradeable, IERC20Upgradeable)
-        verified(msg.sender)
-        verified(to)
+        allowed(msg.sender)
+        allowed(to)
         returns (bool)
     {
         super.transfer(to, amount);
@@ -181,7 +182,7 @@ contract EUI is
 
     /**
      * @notice  This function overrides both ERC20Upgradeable `approve` and IERC20Upgradeable `approve` functions.
-     * @notice  It ensures that approval is allowed for verified accounts and not allowed for blocklisted accounts.
+     * @notice  It ensures that approval is allowed for allowed accounts and not allowed for blocklisted accounts.
      * @notice  The function returns `true` if the approval is successful; otherwise, it reverts with an error.
      * @dev     Sets the allowance for a spender to spend tokens on behalf of the owner.
      * @param   spender  The address of the spender being allowed to spend tokens.
@@ -194,8 +195,8 @@ contract EUI is
     )
         public
         override(ERC20Upgradeable, IERC20Upgradeable)
-        verified(msg.sender)
-        verified(spender)
+        allowed(msg.sender)
+        allowed(spender)
         returns (bool)
     {
         super.approve(spender, amount);
@@ -204,7 +205,7 @@ contract EUI is
 
     /**
      * @notice  This function overrides both ERC20Upgradeable `transferFrom` and IERC20Upgradeable `transferFrom` functions.
-     * @notice  It ensures that token transfers are allowed for verified accounts and not allowed for blocklisted accounts.
+     * @notice  It ensures that token transfers are allowed for allowed accounts and not allowed for blocklisted accounts.
      * @notice  The function returns `true` if the transfer is successful; otherwise, it reverts with an error.
      * @dev     Transfers tokens from one address to another using the allowance mechanism.
      * @param   from    The address from which tokens are transferred.
@@ -219,8 +220,8 @@ contract EUI is
     )
         public
         override(ERC20Upgradeable, IERC20Upgradeable)
-        verified(from)
-        verified(to)
+        allowed(from)
+        allowed(to)
         returns (bool)
     {
         super.transferFrom(from, to, amount);
@@ -229,7 +230,7 @@ contract EUI is
 
     /**
      * @notice  This function overrides both ERC20Upgradeable `increaseAllowance` and IERC20Upgradeable `increaseAllowance` functions.
-     * @notice  It ensures that increasing the allowance is allowed for verified accounts and not allowed for blocklisted accounts.
+     * @notice  It ensures that increasing the allowance is allowed for allowed accounts and not allowed for blocklisted accounts.
      * @notice  The function returns `true` if the allowance increase is successful; otherwise, it reverts with an error.
      * @dev     Increases the allowance for a spender to spend tokens on behalf of the owner.
      * @param   spender The address of the spender whose allowance is being increased.
@@ -242,8 +243,8 @@ contract EUI is
     )
         public
         override
-        verified(msg.sender)
-        verified(spender)
+        allowed(msg.sender)
+        allowed(spender)
         returns (bool)
     {
         super.increaseAllowance(spender, addedValue);
@@ -252,7 +253,7 @@ contract EUI is
 
     /**
      * @notice  This function overrides both ERC20Upgradeable `decreaseAllowance` and IERC20Upgradeable `decreaseAllowance` functions.
-     * @notice  It ensures that decreasing the allowance is allowed for verified accounts and not allowed for blocklisted accounts.
+     * @notice  It ensures that decreasing the allowance is allowed for allowed accounts and not allowed for blocklisted accounts.
      * @notice  The function returns `true` if the allowance decrease is successful; otherwise, it reverts with an error.
      * @dev     Decreases the allowance for a spender to spend tokens on behalf of the owner.
      * @param   spender The address of the spender whose allowance is being decreased.
@@ -265,8 +266,8 @@ contract EUI is
     )
         public
         override
-        verified(msg.sender)
-        verified(spender)
+        allowed(msg.sender)
+        allowed(spender)
         returns (bool)
     {
         super.decreaseAllowance(spender, subtractedValue);
@@ -310,8 +311,8 @@ contract EUI is
     )
         public
         override
-        verified(owner)
-        verified(spender)
+        allowed(owner)
+        allowed(spender)
     {
         super.permit(owner, spender, value, deadline, v, r, s);
     }
@@ -373,34 +374,32 @@ contract EUI is
      * @param   account The address to be added to the allowlist.
      */
     function _addToAllowlist(address account) internal {
-        require(!allowlist[account], "account is already in allowlist");
         allowlist[account] = true;
         emit AddedToAllowlist(account);
     }
 
     function addToAllowlist(
         address account
-    ) external onlyRole(ALLOWLIST_ROLE) {
+    ) external onlyRole(ALLOW_ROLE) {
         _addToAllowlist(account);
     }
 
     function addManyToAllowlist(
-        address[] memory accounts
-    ) external onlyRole(ALLOWLIST_ROLE) {
+        address[] calldata accounts
+    ) external onlyRole(ALLOW_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
             _addToAllowlist(accounts[i]);
         }
     }
 
     function _removeFromAllowlist(address account) internal {
-        require(allowlist[account], "account is not in allowlist");
         allowlist[account] = false;
         emit RemovedFromAllowlist(account);
     }
 
     function removeFromAllowlist(
         address account
-    ) external onlyRole(ALLOWLIST_ROLE) {
+    ) external onlyRole(ALLOW_ROLE) {
         _removeFromAllowlist(account);
     }
 
@@ -412,8 +411,8 @@ contract EUI is
      * @param   accounts The address to be removed from the allowlist.
      */
     function removeManyFromAllowlist(
-        address[] memory accounts
-    ) external onlyRole(ALLOWLIST_ROLE) {
+        address[] calldata accounts
+    ) external onlyRole(ALLOW_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
             _removeFromAllowlist(accounts[i]);
         }
@@ -451,12 +450,14 @@ contract EUI is
         return eudMintAmount;
     }
 
+
+    /// ---------- ERC4626 FUNCTIONS ---------- ///
     /**
      * @notice  This function provides the total assets currently held in the vault, which are calculated by converting the total supply of shares (EUI) into assets (EUD) using the current exchange rate.
      * @dev     Returns the total assets held in the vault, converted from the total supply of shares (EUI).
      * @return  uint256  The total assets held in the vault.
      */
-    function totalAssets() external view virtual returns (uint256) {
+    function totalAssets() external view returns (uint256) {
         return _convertToAssets(totalSupply());
     }
 
@@ -468,7 +469,7 @@ contract EUI is
      */
     function convertToShares(
         uint256 assets
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         return _convertToShares(assets);
     }
 
@@ -480,7 +481,7 @@ contract EUI is
      */
     function convertToAssets(
         uint256 shares
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         return _convertToAssets(shares);
     }
 
@@ -494,7 +495,7 @@ contract EUI is
      */
     function maxDeposit(
         address receiver
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         return type(uint256).max;
     }
 
@@ -507,7 +508,7 @@ contract EUI is
      */
     function previewDeposit(
         uint256 assets
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         return _convertToShares(assets);
     }
 
@@ -523,11 +524,11 @@ contract EUI is
     function deposit(
         uint256 assets,
         address receiver
-    ) public virtual returns (uint256) {
-        require(
-            assets <= maxDeposit(receiver),
-            "ERC4626: deposit more than max"
-        );
+    ) public returns (uint256) {
+        // require(
+        //     assets <= maxDeposit(receiver),      THIS IS UINT256_MAX, so no reason to check
+        //     "ERC4626: deposit more than max"
+        // );
         uint256 shares = flipToEUI(msg.sender, receiver, assets);
         emit Deposit(msg.sender, receiver, assets, shares);
         return shares;
@@ -541,7 +542,7 @@ contract EUI is
      * @param   receiver  receiver The address for which to calculate the maximum mintable amount of assets (EUD).
      * @return  uint256  The maximum amount of assets (EUD) that can be minted as shares (EUI) for the specified receiver.
      */
-    function maxMint(address receiver) public view virtual returns (uint256) {
+    function maxMint(address receiver) public view returns (uint256) {
         return type(uint256).max;
     }
 
@@ -552,7 +553,7 @@ contract EUI is
      * @param   shares  The number of shares (EUI) to preview the minted assets (EUD) for.
      * @return  uint256  The amount of assets (EUD) that will be minted for the specified number of shares (EUI).
      */
-    function previewMint(uint256 shares) public view virtual returns (uint256) {
+    function previewMint(uint256 shares) public view returns (uint256) {
         return _convertToAssets(shares);
     }
 
@@ -568,9 +569,10 @@ contract EUI is
     function mint(
         uint256 shares,
         address receiver
-    ) public virtual returns (uint256) {
-        require(shares <= maxMint(receiver), "ERC4626: mint more than max");
-        uint256 assets = flipToEUD(msg.sender, receiver, shares);
+    ) public returns (uint256) {
+        // require(shares <= maxMint(receiver), "ERC4626: mint more than max"); THIS IS UINT256_MAX NO REASON TO CHECK
+        uint256 assetAmount = _convertToAssets(shares);
+        uint256 assets = flipToEUI(msg.sender, receiver, assetAmount);
         return assets;
     }
 
@@ -583,8 +585,11 @@ contract EUI is
      * @param   owner  The address of the owner whose maximum withdrawal amount is queried.
      * @return  uint256  The maximum amount of assets (EUD) that the owner can withdraw based on their EUI balance.
      */
-    function maxWithdraw(address owner) public view virtual returns (uint256) {
-        return _convertToAssets(balanceOf(owner));
+    function maxWithdraw(address owner) public view returns (uint256) {
+        if(paused()){
+            return 0;
+        }
+        return _convertToAssets(this.balanceOf(owner));
     }
 
     /**
@@ -596,7 +601,7 @@ contract EUI is
      */
     function previewWithdraw(
         uint256 assets
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         return _convertToShares(assets);
     }
 
@@ -615,15 +620,16 @@ contract EUI is
         uint256 assets,
         address receiver,
         address owner
-    ) public virtual returns (uint256) {
-        require(
-            assets <= maxWithdraw(owner),
-            "ERC4626: withdraw more than max"
-        );
-
+    ) public returns (uint256) {
+        // require(
+        //     assets <= maxWithdraw(owner),
+        //     "ERC4626: withdraw more than max"
+        // );
         uint256 sharesAmount = _convertToShares(assets);
-        flipToEUD(owner, receiver, sharesAmount);
-        return sharesAmount;
+        require(this.transferFrom(owner, address(this), sharesAmount), "EUI transfer failed");
+        _burn(address(this), sharesAmount);
+        eud.mint(receiver, assets);
+        return assets;
     }
 
     // Redeem
@@ -635,7 +641,10 @@ contract EUI is
      * @param   owner  The owner's address, who is the owner of the vault and can redeem shares (EUI) for assets (EUD).
      * @return  uint256  The maximum amount of shares (EUI) that can be redeemed by the owner.
      */
-    function maxRedeem(address owner) public view virtual returns (uint256) {
+    function maxRedeem(address owner) public view returns (uint256) {
+        if(paused()){
+            return 0;
+        }
         return balanceOf(owner);
     }
 
@@ -648,7 +657,7 @@ contract EUI is
      */
     function previewRedeem(
         uint256 shares
-    ) public view virtual returns (uint256) {
+    ) public view returns (uint256) {
         return _convertToAssets(shares);
     }
 
@@ -666,11 +675,9 @@ contract EUI is
         uint256 shares,
         address receiver,
         address owner
-    ) public virtual returns (uint256) {
+    ) public returns (uint256) {
         require(shares <= maxRedeem(owner), "ERC4626: redeem more than max");
-        uint256 assetsAmount = _convertToAssets(shares);
-        flipToEUI(owner, receiver, assetsAmount);
-        return assetsAmount;
+        flipToEUD(owner, receiver, shares);
     }
 
     /**
@@ -683,7 +690,7 @@ contract EUI is
      */
     function _convertToShares(
         uint256 assets
-    ) internal view virtual returns (uint256) {
+    ) internal view returns (uint256) {
         return yieldOracle.fromEudToEui(assets);
     }
 
@@ -697,7 +704,7 @@ contract EUI is
      */
     function _convertToAssets(
         uint256 shares
-    ) internal view virtual returns (uint256) {
+    ) internal view returns (uint256) {
         return yieldOracle.fromEuiToEud(shares);
     }
 }
