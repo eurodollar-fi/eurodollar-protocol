@@ -10,6 +10,10 @@ out/
 # Docs
 docs/
 
+# Forge
+broadcast/
+cov.txt
+
 # Dotenv file
 .env
 
