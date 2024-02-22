@@ -166,6 +166,7 @@ contract EUDTest is Test, Constants {
     }
 
     function testTransferEud(address account, uint256 amount) public {
+        vm.assume(amount != 0);
         vm.assume(account != address(0));
         eud.mint(address(this), amount);
         eud.transfer(account, amount);
@@ -175,11 +176,27 @@ contract EUDTest is Test, Constants {
         assertEq(eud.balanceOf(address(this)), amount);
     }
 
-    function testAddToBlocklist(address account) public {
-        address[] memory accounts = new address[](1);
-        accounts[0] = account;
+    function testTransferFrom(address account, address spender, uint256 amount) public {
+        vm.assume(amount != 0);
+        vm.assume(account != address(0) && spender != address(0));
+        eud.mint(account, amount);
+        vm.prank(account);
+        eud.approve(spender, amount);
+        vm.prank(spender);
+        eud.transferFrom(account, spender, amount);
+        assertEq(eud.balanceOf(spender), amount);
+    }
 
-        eud.addToBlocklist(accounts);
+    function testFailTransferFromNotAuthorized(address account, address spender, uint256 amount) public {
+        vm.assume(amount != 0);
+        vm.assume(account != address(0) && spender != address(0));
+        eud.mint(account, amount);
+        vm.prank(spender);
+        eud.transferFrom(account, spender, amount);
+    }
+
+    function testAddToBlocklist(address account) public {
+        eud.addToBlocklist(account);
         assertTrue(eud.blocklist(account));
     }
 
@@ -195,12 +212,9 @@ contract EUDTest is Test, Constants {
     }
 
     function testRemoveFromBlocklist(address account) public {
-        address[] memory accounts = new address[](1);
-        accounts[0] = account;
-
-        eud.addToBlocklist(accounts);
+        eud.addToBlocklist(account);
         assertTrue(eud.blocklist(account));
-        eud.removeFromBlocklist(accounts);
+        eud.removeFromBlocklist(account);
         assertTrue(!eud.blocklist(account));
     }
 

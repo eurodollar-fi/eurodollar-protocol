@@ -220,6 +220,19 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.balanceOf(address(this)), amount);
     }
 
+    function testTransferFrom(address account, address spender, uint256 amount) public {
+        vm.assume(amount != 0);
+        vm.assume(account != address(0) && spender != address(0));
+        eui.addToAllowlist(account);
+        eui.addToAllowlist(spender);
+        eui.mintEUI(account, amount);
+        vm.prank(account);
+        eui.approve(spender, amount);
+        vm.prank(spender);
+        eui.transferFrom(account, spender, amount);
+        assertEq(eui.balanceOf(spender), amount);
+    }
+
     function testAddToAllowlist(address account) public {
         vm.assume(account != address(this));
         address[] memory allowlist = new address[](1);
