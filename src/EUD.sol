@@ -8,13 +8,11 @@ import {PausableUpgradeable} from "oz-up/security/PausableUpgradeable.sol";
 import {ERC20PermitUpgradeable} from "oz-up/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import {UUPSUpgradeable} from "oz-up/proxy/utils/UUPSUpgradeable.sol";
 import {AccessControlUpgradeable} from "oz-up/access/AccessControlUpgradeable.sol";
-import {IEUI} from "../interfaces/IEUI.sol";
 
 /**
  * @author Rhinefield Technologies Limited
  * @title EUD - Eurodollar Token
  */
-
 contract EUD is
     Initializable,
     PausableUpgradeable,
@@ -26,8 +24,6 @@ contract EUD is
     mapping(address => bool) public blocklist;
     // @notice Mapping of frozen balances that cannot be transferred.
     mapping(address => uint256) public frozenBalances;
-
-    IEUI public eui;
 
     // Roles
     bytes32 public constant PAUSE_ROLE = keccak256("PAUSE_ROLE");
@@ -78,25 +74,7 @@ contract EUD is
         _grantRole(DEFAULT_ADMIN_ROLE, msg.sender);
     }
 
-    function setEui(address eui_) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        eui = IEUI(eui_);
-    }
-
     /// ---------- ERC20 FUNCTIONS ---------- ///
-    /**
-     * @notice Returns the total supply of the token.
-     * @notice If the EUI contract is set, include the total assets of the EUI.
-     * @return The total supply of the token.
-     */
-    function totalSupply() public view override returns (uint256) {
-        uint256 euiTotalAssets = 0;
-        if (address(eui) != address(0)) {
-            euiTotalAssets = eui.totalAssets();
-        }
-
-        return super.totalSupply() + euiTotalAssets;
-    }
-
     /**
      * @notice Transfers tokens from msg.sender to a specified recipient.
      * @notice The sender or receiver account must not be on the blocklist.
