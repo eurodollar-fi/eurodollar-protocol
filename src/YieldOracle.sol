@@ -183,7 +183,7 @@ contract YieldOracle is AccessControl {
      * @param eudAmount The amount of EUD tokens for which the equivalent EUI tokens need to be calculated.
      * @return uint256 The equivalent amount of EUI tokens based on the current price from the yield oracle.
      */
-    function fromEudToEui(uint256 eudAmount) public view returns (uint256) {
+    function fromEudToEui(uint256 eudAmount) external view returns (uint256) {
         return Math.mulDiv(eudAmount, 10 ** 18, currentPrice);
     }
 
@@ -192,7 +192,7 @@ contract YieldOracle is AccessControl {
      * @param euiAmount The amount of EUI tokens for which the equivalent EUD tokens need to be calculated.
      * @return uint256 The equivalent amount of EUD tokens based on the old price from the yield oracle.
      */
-    function fromEuiToEud(uint256 euiAmount) public view returns (uint256) {
+    function fromEuiToEud(uint256 euiAmount) external view returns (uint256) {
         return Math.mulDiv(euiAmount, previousPrice, 10 ** 18);
     }
 }
