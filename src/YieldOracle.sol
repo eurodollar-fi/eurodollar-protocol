@@ -7,11 +7,6 @@ import {Pausable} from "oz/security/Pausable.sol";
 import {AccessControl} from "oz/access/AccessControl.sol";
 import {Math} from "oz/utils/math/Math.sol";
 
-error InsufficientUpdateDelay();
-error InsufficientCommitDelay();
-error PriceOutOfBounds();
-error DelayOutOfBounds();
-
 uint256 constant MIN_PRICE = 1e18; // Minimum EUIEUD price
 uint256 constant NO_PRICE = 0; // Sentinel value to indicate empty
 
@@ -55,25 +50,24 @@ contract YieldOracle is AccessControl {
      * @param price The new price to be set.
      * @return bool Returns true if the price is successfully updated.
      */
-    function updatePrice(uint256 price) external onlyRole(ORACLE_ROLE) returns (bool) {
+    function updatePrice(
+        uint256 price
+    ) external onlyRole(ORACLE_ROLE) returns (bool) {
         // Enforce at least updateDelay between updates
-        if (block.timestamp < lastUpdate + updateDelay) {
-            revert InsufficientUpdateDelay();
-        }
+        require(
+            lastUpdate + updateDelay <= block.timestamp,
+            "Insufficient update delay"
+        );
 
         // If the previous update has not yet been committed, commit now to preserve
         // the invariant that previousPrice <= currentPrice <= nextPrice
-        if (nextPrice != NO_PRICE) {
-            commitPrice();
-        }
-
-        // Save value (solc lacking taint analysis here?)
-        uint256 _currentPrice = currentPrice;
+        if (nextPrice != NO_PRICE) commitPrice();
 
         // price \in [currentPrice, currentPrice + maxPriceIncrease] (both inclusive)
-        if (price < _currentPrice || price - _currentPrice > maxPriceIncrease) {
-            revert PriceOutOfBounds();
-        }
+        require(
+            price - currentPrice <= maxPriceIncrease,
+            "Price out of bounds"
+        );
 
         nextPrice = price;
         lastUpdate = block.timestamp;
@@ -81,18 +75,11 @@ contract YieldOracle is AccessControl {
     }
 
     function commitPrice() public returns (bool) {
-        // Save values (solc lacking taint analysis here?)
-        uint256 _nextPrice = nextPrice;
-        uint256 _currentPrice = currentPrice;
-
-        // nextPrice must be set and
-        if (_nextPrice == NO_PRICE || _nextPrice < _currentPrice) {
-            revert PriceOutOfBounds();
-        }
-
-        if (block.timestamp < lastUpdate + commitDelay) {
-            revert InsufficientCommitDelay();
-        }
+        require(nextPrice - currentPrice >= 0, "Price out of bounds");
+        require(
+            lastUpdate + commitDelay <= block.timestamp,
+            "Insufficient commit delay"
+        );
 
         previousPrice = currentPrice;
         currentPrice = nextPrice;
@@ -106,11 +93,9 @@ contract YieldOracle is AccessControl {
      * @param maxPriceIncrease_ The new maximum price increase value.
      * @return A boolean indicating whether the operation was successful.
      */
-    function adminUpdateMaxPriceIncrease(uint256 maxPriceIncrease_)
-        external
-        onlyRole(DEFAULT_ADMIN_ROLE)
-        returns (bool)
-    {
+    function adminUpdateMaxPriceIncrease(
+        uint256 maxPriceIncrease_
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
         maxPriceIncrease = maxPriceIncrease_;
         return true;
     }
@@ -120,12 +105,13 @@ contract YieldOracle is AccessControl {
      * @param delay The new delay value to be set.
      * @return bool Returns true if the delay was successfully set.
      */
-    function adminCommitDelay(uint256 delay) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
-        if (delay > updateDelay) {
-            revert DelayOutOfBounds();
-        }
+    function adminCommitDelay(
+        uint256 delay
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
+        require(updateDelay > delay, "Delay out of bounds");
 
         commitDelay = delay;
+
         return true;
     }
 
@@ -134,10 +120,10 @@ contract YieldOracle is AccessControl {
      * @param delay The new delay value to be set.
      * @return bool Returns true if the delay was successfully set.
      */
-    function adminUpdateDelay(uint256 delay) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
-        if (delay < commitDelay) {
-            revert DelayOutOfBounds();
-        }
+    function adminUpdateDelay(
+        uint256 delay
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
+        require(delay >= commitDelay, "Delay out of bounds");
 
         updateDelay = delay;
         return true;
@@ -148,10 +134,10 @@ contract YieldOracle is AccessControl {
      * @param price The new price to be set.
      * @return A boolean indicating whether the update was successful or not.
      */
-    function adminUpdateCurrentPrice(uint256 price) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
-        if (price < MIN_PRICE || price < previousPrice) {
-            revert PriceOutOfBounds();
-        }
+    function adminUpdateCurrentPrice(
+        uint256 price
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
+        require(price >= previousPrice, "Price out of bounds");
 
         currentPrice = price;
 
@@ -163,18 +149,25 @@ contract YieldOracle is AccessControl {
      * @param price The new old price to be set.
      * @return A boolean indicating whether the update was successful or not.
      */
-    function adminUpdatePreviousPrice(uint256 price) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
-        if (price < MIN_PRICE || price > currentPrice) {
-            revert PriceOutOfBounds();
-        }
+    function adminUpdatePreviousPrice(
+        uint256 price
+    ) external onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
+        require(
+            MIN_PRICE <= price && price <= currentPrice,
+            "Price out of bounds"
+        );
 
         previousPrice = price;
 
         return true;
     }
 
-    function adminResetNextPrice() external onlyRole(DEFAULT_ADMIN_ROLE) returns (bool) {
-        nextPrice = 0;
+    function adminResetNextPrice()
+        external
+        onlyRole(DEFAULT_ADMIN_ROLE)
+        returns (bool)
+    {
+        nextPrice = NO_PRICE;
         return true;
     }
 

@@ -1,52 +1,78 @@
 // SPDX-License-Identifier: MIT
 // SPDX-FileCopyrightText: © 2023 Rhinefield Technologies Limited
-
 pragma solidity ^0.8.21;
 
-import {Test} from "forge-std/Test.sol";
+import {Test, stdError} from "forge-std/Test.sol";
 import {Strings} from "oz/utils/Strings.sol";
 import {Math} from "oz/utils/math/Math.sol";
 import {Constants} from "./Constants.sol";
-import {
-    MIN_PRICE,
-    NO_PRICE,
-    YieldOracle,
-    PriceOutOfBounds,
-    InsufficientUpdateDelay,
-    InsufficientCommitDelay
-} from "../src/YieldOracle.sol";
+import {MIN_PRICE, NO_PRICE, YieldOracle} from "../src/YieldOracle.sol";
 
 abstract contract YieldOracleInvariants is Test, Constants {
     YieldOracle public yieldOracle;
 
     function invariant_MonotonePrices() external {
-        assertGe(yieldOracle.currentPrice(), yieldOracle.previousPrice(), "Current price must never decrease over time");
+        assertGe(
+            yieldOracle.currentPrice(),
+            yieldOracle.previousPrice(),
+            "Current price must never decrease over time"
+        );
         if (yieldOracle.nextPrice() > 0) {
-            assertGe(yieldOracle.nextPrice(), yieldOracle.currentPrice(), "Next price must never decrease over time");
+            assertGe(
+                yieldOracle.nextPrice(),
+                yieldOracle.currentPrice(),
+                "Next price must never decrease over time"
+            );
         }
     }
 
     function invariant_MinPrice() external {
-        assertGe(yieldOracle.currentPrice(), MIN_PRICE, "Prices must always be at least MIN_PRICE");
-        assertGe(yieldOracle.previousPrice(), MIN_PRICE, "Prices must always be at least MIN_PRICE");
+        assertGe(
+            yieldOracle.currentPrice(),
+            MIN_PRICE,
+            "Prices must always be at least MIN_PRICE"
+        );
+        assertGe(
+            yieldOracle.previousPrice(),
+            MIN_PRICE,
+            "Prices must always be at least MIN_PRICE"
+        );
     }
 
     function invariant_NoFreeLunch() external {
         uint256 someEud = 1.41247819372198e25;
         uint256 someEui = yieldOracle.fromEudToEui(someEud);
 
-        assertLe(yieldOracle.fromEuiToEud(someEui), someEud, "Converting back and forth should never incease balance");
+        assertLe(
+            yieldOracle.fromEuiToEud(someEui),
+            someEud,
+            "Converting back and forth should never incease balance"
+        );
     }
 
     function invariant_PriceIncrease() external {
-        assertGt(yieldOracle.maxPriceIncrease(), 0, "Price increase should be greater than 0");
+        assertGt(
+            yieldOracle.maxPriceIncrease(),
+            0,
+            "Price increase should be greater than 0"
+        );
     }
 
     function invariant_Delay() external {
-        assertGt(yieldOracle.updateDelay(), 0, "Update delay should be greater than 0");
-        assertGt(yieldOracle.commitDelay(), 0, "Commit delay should be greater than 0");
         assertGt(
-            yieldOracle.updateDelay(), yieldOracle.commitDelay(), "Update delay should be greater than commit delay"
+            yieldOracle.updateDelay(),
+            0,
+            "Update delay should be greater than 0"
+        );
+        assertGt(
+            yieldOracle.commitDelay(),
+            0,
+            "Commit delay should be greater than 0"
+        );
+        assertGt(
+            yieldOracle.updateDelay(),
+            yieldOracle.commitDelay(),
+            "Update delay should be greater than commit delay"
         );
     }
 }
@@ -57,7 +83,9 @@ contract YieldOracleTest is Test, YieldOracleInvariants {
     }
 
     function testConstructor() public {
-        assertTrue(yieldOracle.hasRole(yieldOracle.DEFAULT_ADMIN_ROLE(), address(this)));
+        assertTrue(
+            yieldOracle.hasRole(yieldOracle.DEFAULT_ADMIN_ROLE(), address(this))
+        );
         assertEq(yieldOracle.previousPrice(), MIN_PRICE);
         assertEq(yieldOracle.currentPrice(), MIN_PRICE);
         assertEq(yieldOracle.nextPrice(), NO_PRICE);
@@ -78,13 +106,17 @@ contract YieldOracleTest is Test, YieldOracleInvariants {
         bytes32 roleAdmin = yieldOracle.getRoleAdmin(role);
         vm.assume(!yieldOracle.hasRole(roleAdmin, account));
 
-        vm.expectRevert(accessControlError(account, yieldOracle.DEFAULT_ADMIN_ROLE()));
+        vm.expectRevert(
+            accessControlError(account, yieldOracle.DEFAULT_ADMIN_ROLE())
+        );
         vm.prank(account);
         yieldOracle.grantRole(role, account);
     }
 
     function testAdminUpdateMaxPriceIncrease(uint256 amount) public {
-        assertTrue(yieldOracle.hasRole(yieldOracle.DEFAULT_ADMIN_ROLE(), address(this)));
+        assertTrue(
+            yieldOracle.hasRole(yieldOracle.DEFAULT_ADMIN_ROLE(), address(this))
+        );
 
         yieldOracle.adminUpdateMaxPriceIncrease(amount);
         assertEq(yieldOracle.maxPriceIncrease(), amount);
@@ -92,19 +124,42 @@ contract YieldOracleTest is Test, YieldOracleInvariants {
 
     function testSetDelay(uint256 delay) public {
         delay = bound(delay, yieldOracle.commitDelay(), type(uint256).max);
-        assertTrue(yieldOracle.hasRole(yieldOracle.DEFAULT_ADMIN_ROLE(), address(this)));
+        assertTrue(
+            yieldOracle.hasRole(yieldOracle.DEFAULT_ADMIN_ROLE(), address(this))
+        );
 
         yieldOracle.adminUpdateDelay(delay);
         assertEq(yieldOracle.updateDelay(), delay);
     }
 
-    function testUpdatePrice(address oracle, uint256 advanceUpdate, uint256 advanceCommit, uint256 increase) public {
-        advanceUpdate = bound(advanceUpdate, yieldOracle.updateDelay(), 30 days);
-        advanceCommit = bound(advanceCommit, yieldOracle.commitDelay(), yieldOracle.updateDelay() - 1);
+    function testUpdatePrice(
+        address oracle,
+        uint256 advanceUpdate,
+        uint256 advanceCommit,
+        uint256 increase
+    ) public {
+        advanceUpdate = bound(
+            advanceUpdate,
+            yieldOracle.updateDelay(),
+            30 days
+        );
+        advanceCommit = bound(
+            advanceCommit,
+            yieldOracle.commitDelay(),
+            yieldOracle.updateDelay() - 1
+        );
 
         uint256 price0 = yieldOracle.currentPrice();
-        uint256 price1 = bound(increase, price0, price0 + yieldOracle.maxPriceIncrease());
-        uint256 price2 = bound(increase, price1, price1 + yieldOracle.maxPriceIncrease());
+        uint256 price1 = bound(
+            increase,
+            price0,
+            price0 + yieldOracle.maxPriceIncrease()
+        );
+        uint256 price2 = bound(
+            increase,
+            price1,
+            price1 + yieldOracle.maxPriceIncrease()
+        );
 
         yieldOracle.grantRole(yieldOracle.ORACLE_ROLE(), oracle);
 
@@ -137,28 +192,40 @@ contract YieldOracleTest is Test, YieldOracleInvariants {
         vm.assume(notOracle != address(this));
         assert(!yieldOracle.hasRole(yieldOracle.ORACLE_ROLE(), notOracle));
 
-        vm.expectRevert(accessControlError(notOracle, yieldOracle.ORACLE_ROLE()));
+        vm.expectRevert(
+            accessControlError(notOracle, yieldOracle.ORACLE_ROLE())
+        );
         vm.prank(notOracle);
         yieldOracle.updatePrice(MIN_PRICE);
     }
 
-    function testNotEnoughTimeBetweenPriceUpdates(address oracle, uint256 delay) public {
+    function testNotEnoughTimeBetweenPriceUpdates(
+        address oracle,
+        uint256 delay
+    ) public {
         delay = bound(delay, 0, yieldOracle.updateDelay() - 1);
         yieldOracle.grantRole(yieldOracle.ORACLE_ROLE(), oracle);
         skip(delay);
 
-        vm.expectRevert(InsufficientUpdateDelay.selector);
+        vm.expectRevert(bytes("Insufficient update delay"));
         vm.prank(oracle);
         yieldOracle.updatePrice(MIN_PRICE);
     }
 
-    function testPriceUpdateAboveLimit(address oracle, uint256 increase) public {
-        increase = bound(increase, yieldOracle.maxPriceIncrease() + 1, type(uint256).max - yieldOracle.currentPrice());
+    function testPriceUpdateAboveLimit(
+        address oracle,
+        uint256 increase
+    ) public {
+        increase = bound(
+            increase,
+            yieldOracle.maxPriceIncrease() + 1,
+            type(uint256).max - yieldOracle.currentPrice()
+        );
         uint256 price = yieldOracle.currentPrice() + increase;
         yieldOracle.grantRole(yieldOracle.ORACLE_ROLE(), oracle);
         skip(yieldOracle.updateDelay());
 
-        vm.expectRevert(PriceOutOfBounds.selector);
+        vm.expectRevert("Price out of bounds");
         vm.prank(oracle);
         yieldOracle.updatePrice(price);
     }
@@ -168,7 +235,7 @@ contract YieldOracleTest is Test, YieldOracleInvariants {
         yieldOracle.grantRole(yieldOracle.ORACLE_ROLE(), oracle);
         skip(yieldOracle.updateDelay());
 
-        vm.expectRevert(PriceOutOfBounds.selector);
+        vm.expectRevert(stdError.arithmeticError);
         vm.prank(oracle);
         yieldOracle.updatePrice(price);
     }
@@ -176,7 +243,7 @@ contract YieldOracleTest is Test, YieldOracleInvariants {
     function testAdminSetCurrentPriceBelowLimit(uint256 price) public {
         price = bound(price, 0, MIN_PRICE - 1);
 
-        vm.expectRevert(PriceOutOfBounds.selector);
+        vm.expectRevert("Price out of bounds");
         yieldOracle.adminUpdateCurrentPrice(price);
     }
 
@@ -185,33 +252,47 @@ contract YieldOracleTest is Test, YieldOracleInvariants {
         yieldOracle.adminUpdateCurrentPrice(price); // First set high current price
         yieldOracle.adminUpdatePreviousPrice(price);
 
-        vm.expectRevert(PriceOutOfBounds.selector);
+        vm.expectRevert("Price out of bounds");
         yieldOracle.adminUpdateCurrentPrice(price - 1);
     }
 
     function testAdminSetOldPriceBelowLimit(uint256 price) public {
         price = bound(price, 0, MIN_PRICE - 1);
 
-        vm.expectRevert(PriceOutOfBounds.selector);
+        vm.expectRevert("Price out of bounds");
         yieldOracle.adminUpdatePreviousPrice(price);
     }
 
-    function testFromEudtoEui(uint256 amount, uint256 oldPrice, uint256 currentPrice) public {
+    function testFromEudtoEui(
+        uint256 amount,
+        uint256 oldPrice,
+        uint256 currentPrice
+    ) public {
         oldPrice = bound(oldPrice, 1e18, 1e37);
         currentPrice = bound(currentPrice, oldPrice, 1e37);
         amount = bound(amount, 1, 1e37);
         yieldOracle.adminUpdateCurrentPrice(currentPrice);
         yieldOracle.adminUpdatePreviousPrice(oldPrice);
-        assertEq(yieldOracle.fromEudToEui(amount), Math.mulDiv(amount, 1e18, currentPrice));
+        assertEq(
+            yieldOracle.fromEudToEui(amount),
+            Math.mulDiv(amount, 1e18, currentPrice)
+        );
     }
 
-    function testFromEuiToEud(uint256 amount, uint256 oldPrice, uint256 currentPrice) public {
+    function testFromEuiToEud(
+        uint256 amount,
+        uint256 oldPrice,
+        uint256 currentPrice
+    ) public {
         oldPrice = bound(oldPrice, 1e18, 1e37);
         currentPrice = bound(currentPrice, oldPrice, 1e37);
         amount = bound(amount, 1, 1e37);
         yieldOracle.adminUpdateCurrentPrice(currentPrice);
         yieldOracle.adminUpdatePreviousPrice(oldPrice);
-        assertEq(yieldOracle.fromEuiToEud(amount), Math.mulDiv(amount, oldPrice, 1e18));
+        assertEq(
+            yieldOracle.fromEuiToEud(amount),
+            Math.mulDiv(amount, oldPrice, 1e18)
+        );
     }
 
     /// forge-config: default.fuzz.runs = 2048
@@ -221,7 +302,9 @@ contract YieldOracleTest is Test, YieldOracleInvariants {
         uint256 maxPriceIncrease = 0.1e18;
         uint256 lowerBoundPrice = MIN_PRICE;
         uint256 hourlyFor100Years = (365 days * 100) / 1 hours;
-        uint256 upperBoundPrice = lowerBoundPrice + maxPriceIncrease * hourlyFor100Years;
+        uint256 upperBoundPrice = lowerBoundPrice +
+            maxPriceIncrease *
+            hourlyFor100Years;
 
         price = bound(price, lowerBoundPrice, upperBoundPrice);
 
@@ -244,13 +327,17 @@ contract YieldOracleTest is Test, YieldOracleInvariants {
     }
 }
 
-function accessControlError(address account, bytes32 role) pure returns (bytes memory) {
-    return abi.encodePacked(
-        "AccessControl: account ",
-        Strings.toHexString(account),
-        " is missing role ",
-        Strings.toHexString(uint256(role), 32)
-    );
+function accessControlError(
+    address account,
+    bytes32 role
+) pure returns (bytes memory) {
+    return
+        abi.encodePacked(
+            "AccessControl: account ",
+            Strings.toHexString(account),
+            " is missing role ",
+            Strings.toHexString(uint256(role), 32)
+        );
 }
 
 contract AccessControl is Test, YieldOracleInvariants {
@@ -274,16 +361,24 @@ contract AccessControl is Test, YieldOracleInvariants {
         vm.expectRevert(accessControlError(nobody, yieldOracle.ORACLE_ROLE()));
         yieldOracle.updatePrice(MIN_PRICE);
 
-        vm.expectRevert(accessControlError(nobody, yieldOracle.DEFAULT_ADMIN_ROLE()));
+        vm.expectRevert(
+            accessControlError(nobody, yieldOracle.DEFAULT_ADMIN_ROLE())
+        );
         yieldOracle.adminUpdateMaxPriceIncrease(1e17);
 
-        vm.expectRevert(accessControlError(nobody, yieldOracle.DEFAULT_ADMIN_ROLE()));
+        vm.expectRevert(
+            accessControlError(nobody, yieldOracle.DEFAULT_ADMIN_ROLE())
+        );
         yieldOracle.adminUpdateDelay(1 hours);
 
-        vm.expectRevert(accessControlError(nobody, yieldOracle.DEFAULT_ADMIN_ROLE()));
+        vm.expectRevert(
+            accessControlError(nobody, yieldOracle.DEFAULT_ADMIN_ROLE())
+        );
         yieldOracle.adminUpdateCurrentPrice(MIN_PRICE);
 
-        vm.expectRevert(accessControlError(nobody, yieldOracle.DEFAULT_ADMIN_ROLE()));
+        vm.expectRevert(
+            accessControlError(nobody, yieldOracle.DEFAULT_ADMIN_ROLE())
+        );
         yieldOracle.adminUpdatePreviousPrice(MIN_PRICE);
 
         // Allowed methods
@@ -294,7 +389,9 @@ contract AccessControl is Test, YieldOracleInvariants {
     }
 
     function test_RevertWhen_RoleIsAdmin() public {
-        assertTrue(yieldOracle.hasRole(yieldOracle.DEFAULT_ADMIN_ROLE(), admin));
+        assertTrue(
+            yieldOracle.hasRole(yieldOracle.DEFAULT_ADMIN_ROLE(), admin)
+        );
         vm.startPrank(admin);
 
         vm.expectRevert(accessControlError(admin, yieldOracle.ORACLE_ROLE()));
@@ -315,16 +412,24 @@ contract AccessControl is Test, YieldOracleInvariants {
         assertTrue(yieldOracle.hasRole(yieldOracle.ORACLE_ROLE(), oracle));
         vm.startPrank(oracle);
 
-        vm.expectRevert(accessControlError(oracle, yieldOracle.DEFAULT_ADMIN_ROLE()));
+        vm.expectRevert(
+            accessControlError(oracle, yieldOracle.DEFAULT_ADMIN_ROLE())
+        );
         yieldOracle.adminUpdateMaxPriceIncrease(1e17);
 
-        vm.expectRevert(accessControlError(oracle, yieldOracle.DEFAULT_ADMIN_ROLE()));
+        vm.expectRevert(
+            accessControlError(oracle, yieldOracle.DEFAULT_ADMIN_ROLE())
+        );
         yieldOracle.adminUpdateDelay(1 hours);
 
-        vm.expectRevert(accessControlError(oracle, yieldOracle.DEFAULT_ADMIN_ROLE()));
+        vm.expectRevert(
+            accessControlError(oracle, yieldOracle.DEFAULT_ADMIN_ROLE())
+        );
         yieldOracle.adminUpdateCurrentPrice(MIN_PRICE);
 
-        vm.expectRevert(accessControlError(oracle, yieldOracle.DEFAULT_ADMIN_ROLE()));
+        vm.expectRevert(
+            accessControlError(oracle, yieldOracle.DEFAULT_ADMIN_ROLE())
+        );
         yieldOracle.adminUpdatePreviousPrice(MIN_PRICE);
 
         // Allowed methods
@@ -350,7 +455,11 @@ contract UpdatePrice is Test, YieldOracleInvariants {
         // simulate 10 epochs
         for (uint256 i = 0; i < epochs; i++) {
             skip(yieldOracle.updateDelay());
-            assertTrue(yieldOracle.updatePrice(yieldOracle.currentPrice() + yieldOracle.maxPriceIncrease()));
+            assertTrue(
+                yieldOracle.updatePrice(
+                    yieldOracle.currentPrice() + yieldOracle.maxPriceIncrease()
+                )
+            );
             skip(yieldOracle.commitDelay());
             assertTrue(yieldOracle.commitPrice());
         }
@@ -363,37 +472,53 @@ contract UpdatePrice is Test, YieldOracleInvariants {
     function testFuzz_RevertWhen_PriceIsBelowLimit(uint256 price) public {
         price = bound(price, 0, MIN_PRICE - 1);
 
-        vm.expectRevert(PriceOutOfBounds.selector);
+        vm.expectRevert(stdError.arithmeticError);
         yieldOracle.updatePrice(price);
     }
 
     function testFuzz_RevertWhen_PriceIsAboveLimit(uint256 price) public {
-        price = bound(price, yieldOracle.currentPrice() + yieldOracle.maxPriceIncrease() + 1, type(uint256).max);
+        price = bound(
+            price,
+            yieldOracle.currentPrice() + yieldOracle.maxPriceIncrease() + 1,
+            type(uint256).max
+        );
 
-        vm.expectRevert(PriceOutOfBounds.selector);
+        vm.expectRevert("Price out of bounds");
         yieldOracle.updatePrice(price);
     }
 
-    function testFuzz_RevertWhen_PriceIsBelowPrevious(uint256 price) public skipEpochs(10) {
+    function testFuzz_RevertWhen_PriceIsBelowPrevious(
+        uint256 price
+    ) public skipEpochs(10) {
         price = bound(price, MIN_PRICE, yieldOracle.currentPrice() - 1);
 
-        vm.expectRevert(PriceOutOfBounds.selector);
+        vm.expectRevert(stdError.arithmeticError);
         yieldOracle.updatePrice(price);
     }
 
     function testFuzz_PriceInRange(uint256 price) public {
-        price = bound(price, yieldOracle.currentPrice(), yieldOracle.currentPrice() + yieldOracle.maxPriceIncrease());
+        price = bound(
+            price,
+            yieldOracle.currentPrice(),
+            yieldOracle.currentPrice() + yieldOracle.maxPriceIncrease()
+        );
 
         uint256 currentPriceBefore = yieldOracle.currentPrice();
         assertTrue(yieldOracle.updatePrice(price));
-        assertEq(yieldOracle.currentPrice(), currentPriceBefore, "updatePrice does not change currentPrice");
+        assertEq(
+            yieldOracle.currentPrice(),
+            currentPriceBefore,
+            "updatePrice does not change currentPrice"
+        );
         assertEq(yieldOracle.nextPrice(), price, "updatePrice sets nextPrice");
     }
 
     function test_RevertIf_SenderIsntOracle() public {
         uint256 price = yieldOracle.currentPrice() + 1;
 
-        vm.expectRevert(accessControlError(makeAddr("nobody"), yieldOracle.ORACLE_ROLE()));
+        vm.expectRevert(
+            accessControlError(makeAddr("nobody"), yieldOracle.ORACLE_ROLE())
+        );
         vm.prank(makeAddr("nobody"));
         yieldOracle.updatePrice(price);
     }
@@ -402,30 +527,58 @@ contract UpdatePrice is Test, YieldOracleInvariants {
         uint256 price = yieldOracle.currentPrice() + 1;
         assertTrue(yieldOracle.updatePrice(price));
 
-        vm.expectRevert(InsufficientUpdateDelay.selector);
+        vm.expectRevert("Insufficient update delay");
         yieldOracle.updatePrice(price);
     }
 
     function test_CommitsPriceAfterCommitDelay() public {
         uint256 price0 = yieldOracle.currentPrice();
         assertTrue(yieldOracle.updatePrice(price0 + 1));
-        assertLe(yieldOracle.previousPrice(), yieldOracle.currentPrice(), "invariant");
-        assertEq(yieldOracle.currentPrice(), price0, "updatePrice does not change currentPrice");
-        assertEq(yieldOracle.nextPrice(), price0 + 1, "updatePrice sets nextPrice");
+        assertLe(
+            yieldOracle.previousPrice(),
+            yieldOracle.currentPrice(),
+            "invariant"
+        );
+        assertEq(
+            yieldOracle.currentPrice(),
+            price0,
+            "updatePrice does not change currentPrice"
+        );
+        assertEq(
+            yieldOracle.nextPrice(),
+            price0 + 1,
+            "updatePrice sets nextPrice"
+        );
 
         // "forget" to commit price before the next update window starts
         skip(yieldOracle.updateDelay());
-        assertNotEq(yieldOracle.nextPrice(), NO_PRICE, "nextPrice should be set");
+        assertNotEq(
+            yieldOracle.nextPrice(),
+            NO_PRICE,
+            "nextPrice should be set"
+        );
 
         // We expect this to revert, despite the invariant that currentPrice <= nextPrice,
         // however here nextPrice is not yet committed even though the commitDelay has passed
-        vm.expectRevert(PriceOutOfBounds.selector);
+        vm.expectRevert(stdError.arithmeticError);
         (yieldOracle.updatePrice(price0));
 
         assertTrue(yieldOracle.updatePrice(price0 + 2));
-        assertEq(yieldOracle.previousPrice(), price0, "updatePrice commits pending nextPrice");
-        assertEq(yieldOracle.currentPrice(), price0 + 1, "updatePrice commits pending nextPrice");
-        assertEq(yieldOracle.nextPrice(), price0 + 2, "updatePrice sets nextPrice");
+        assertEq(
+            yieldOracle.previousPrice(),
+            price0,
+            "updatePrice commits pending nextPrice"
+        );
+        assertEq(
+            yieldOracle.currentPrice(),
+            price0 + 1,
+            "updatePrice commits pending nextPrice"
+        );
+        assertEq(
+            yieldOracle.nextPrice(),
+            price0 + 2,
+            "updatePrice sets nextPrice"
+        );
     }
 }
 
@@ -439,9 +592,13 @@ contract CommitPrice is Test, YieldOracleInvariants {
     }
 
     function test_RevertIf_NoPriceSet() public {
-        assertEq(yieldOracle.nextPrice(), NO_PRICE, "nextPrice should not be set");
+        assertEq(
+            yieldOracle.nextPrice(),
+            NO_PRICE,
+            "nextPrice should not be set"
+        );
 
-        vm.expectRevert(PriceOutOfBounds.selector);
+        vm.expectRevert(stdError.arithmeticError);
         yieldOracle.commitPrice();
     }
 
@@ -454,7 +611,7 @@ contract CommitPrice is Test, YieldOracleInvariants {
 
         skip(delay);
 
-        vm.expectRevert(InsufficientCommitDelay.selector);
+        vm.expectRevert("Insufficient commit delay");
         yieldOracle.commitPrice();
     }
 
@@ -467,8 +624,16 @@ contract CommitPrice is Test, YieldOracleInvariants {
 
         vm.prank(makeAddr("nobody"));
         assertTrue(yieldOracle.commitPrice());
-        assertEq(yieldOracle.currentPrice(), price, "currentPrice should be set");
-        assertEq(yieldOracle.nextPrice(), NO_PRICE, "nextPrice should be reset");
+        assertEq(
+            yieldOracle.currentPrice(),
+            price,
+            "currentPrice should be set"
+        );
+        assertEq(
+            yieldOracle.nextPrice(),
+            NO_PRICE,
+            "nextPrice should be reset"
+        );
     }
 
     function test_CommitClearsNextPrice() public {
@@ -478,7 +643,11 @@ contract CommitPrice is Test, YieldOracleInvariants {
         assertEq(yieldOracle.nextPrice(), price, "nextPrice should be set");
         skip(yieldOracle.commitDelay());
         assertTrue(yieldOracle.commitPrice());
-        assertEq(yieldOracle.nextPrice(), NO_PRICE, "nextPrice should be reset");
+        assertEq(
+            yieldOracle.nextPrice(),
+            NO_PRICE,
+            "nextPrice should be reset"
+        );
     }
 
     function test_RevertWhen_CommitTwice() public {
@@ -488,9 +657,13 @@ contract CommitPrice is Test, YieldOracleInvariants {
         assertEq(yieldOracle.nextPrice(), price, "nextPrice should be set");
         skip(yieldOracle.commitDelay());
         assertTrue(yieldOracle.commitPrice());
-        assertEq(yieldOracle.nextPrice(), NO_PRICE, "nextPrice should be reset");
+        assertEq(
+            yieldOracle.nextPrice(),
+            NO_PRICE,
+            "nextPrice should be reset"
+        );
 
-        vm.expectRevert(PriceOutOfBounds.selector);
+        vm.expectRevert(stdError.arithmeticError);
         yieldOracle.commitPrice();
     }
 }
