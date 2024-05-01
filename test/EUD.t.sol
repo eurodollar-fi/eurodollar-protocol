@@ -14,7 +14,9 @@ contract EUDTest is Test, Constants {
     EUD public eud;
 
     bytes32 constant PERMIT_TYPEHASH =
-        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+        keccak256(
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+        );
 
     function setUp() public {
         EUD implementation = new EUD();
@@ -63,13 +65,19 @@ contract EUDTest is Test, Constants {
         assertEq(eud.balanceOf(address(this)), 0);
     }
 
-    function testFailMintEudNotAuthorized(address account, uint256 amount) public {
+    function testFailMintEudNotAuthorized(
+        address account,
+        uint256 amount
+    ) public {
         vm.assume(account != address(this));
         vm.prank(account);
         eud.mint(address(this), amount);
     }
 
-    function testFailBurnEudNotAuthorized(address account, uint256 amount) public {
+    function testFailBurnEudNotAuthorized(
+        address account,
+        uint256 amount
+    ) public {
         vm.assume(account != address(this));
         eud.mint(account, amount);
         vm.prank(account);
@@ -183,7 +191,11 @@ contract EUDTest is Test, Constants {
         assertTrue(eud.blocklist(account));
     }
 
-    function testAddManyToBlocklist(address account1, address account2, address account3) public {
+    function testAddManyToBlocklist(
+        address account1,
+        address account2,
+        address account3
+    ) public {
         address[] memory accounts = new address[](3);
         accounts[0] = account1;
         accounts[1] = account2;
@@ -204,7 +216,11 @@ contract EUDTest is Test, Constants {
         assertTrue(!eud.blocklist(account));
     }
 
-    function testRemoveManyFromBlocklist(address account1, address account2, address account3) public {
+    function testRemoveManyFromBlocklist(
+        address account1,
+        address account2,
+        address account3
+    ) public {
         address[] memory accounts = new address[](3);
         accounts[0] = account1;
         accounts[1] = account2;
@@ -243,7 +259,105 @@ contract EUDTest is Test, Constants {
         assertTrue(!eud.blocklist(account));
     }
 
-    function testFreeze(address account1, address account2, uint256 amount) public {
+    function testTransferFromBlocked(
+        address account,
+        uint256 amount1,
+        uint256 amount2
+    ) public {
+        amount1 = bound(amount1, 0, 100 ether);
+        amount2 = bound(amount2, 0, 100 ether);
+        vm.assume(account != address(this) && account != address(0x0));
+
+        eud.mint(account, amount1 + amount2);
+        assertEq(eud.balanceOf(account), amount1 + amount2);
+
+        vm.prank(account);
+        eud.transfer(address(this), amount1);
+        assertEq(eud.balanceOf(account), amount2);
+
+        vm.prank(address(this));
+        eud.addToBlocklist(account);
+        assertTrue(eud.blocklist(account));
+
+        vm.prank(account);
+        vm.expectRevert("Account is blocked");
+        eud.transfer(address(this), amount1);
+        assertEq(eud.balanceOf(account), amount2);
+    }
+
+    function testMintEUIFromBlocked(
+        address account,
+        uint256 amount1,
+        uint256 amount2
+    ) public {
+        amount1 = bound(amount1, 0, 100 ether);
+        amount2 = bound(amount2, 0, 100 ether);
+        vm.assume(account != address(this) && account != address(0x0));
+
+        eud.mint(account, amount1 + amount2);
+        assertTrue(eud.balanceOf(account) == amount1 + amount2);
+
+        YieldOracle oracle = new YieldOracle();
+        EUI euiImplementation = new EUI(address(eud));
+        ERC1967Proxy euiProxy = new ERC1967Proxy(
+            address(euiImplementation),
+            abi.encodeCall(EUI.initialize, (address(oracle)))
+        );
+        EUI eui = EUI(address(euiProxy));
+        eui.grantRole(eui.ALLOW_ROLE(), address(this));
+        eud.grantRole(eud.BURN_ROLE(), address(eui));
+
+        eui.addToAllowlist(account);
+        eui.addToAllowlist(address(this));
+        assertTrue(eui.allowlist(account));
+        assertTrue(eui.allowlist(address(this)));
+
+        vm.prank(account);
+        eui.deposit(amount1, address(this));
+        assertEq(eud.balanceOf(account), amount2);
+
+        vm.prank(address(this));
+        eud.addToBlocklist(account);
+        assertTrue(eud.blocklist(account));
+
+        vm.prank(account);
+        vm.expectRevert("Account is blocked");
+        eui.deposit(amount2, address(this));
+        assertEq(eud.balanceOf(account), amount2);
+    }
+
+    function testTransferToBlocked(
+        address account,
+        uint256 amount1,
+        uint256 amount2
+    ) public {
+        amount1 = bound(amount1, 0, 100 ether);
+        amount2 = bound(amount2, 0, 100 ether);
+        vm.assume(account != address(this) && account != address(0x0));
+
+        eud.mint(account, amount1 + amount2);
+        assertEq(eud.balanceOf(account), amount1 + amount2);
+
+        vm.prank(account);
+        eud.transfer(address(this), amount1);
+        assertEq(eud.balanceOf(account), amount2);
+
+        vm.prank(address(this));
+        eud.addToBlocklist(address(this));
+        assertTrue(eud.blocklist(address(this)));
+        assertFalse(eud.blocklist(account));
+
+        vm.prank(account);
+        vm.expectRevert("Account is blocked");
+        eud.transfer(address(this), amount1);
+        assertEq(eud.balanceOf(account), amount2);
+    }
+
+    function testFreeze(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
         vm.assume(account1 != address(0) && account2 != address(0));
         eud.mint(account1, amount);
         assertEq(eud.balanceOf(account1), amount);
@@ -252,7 +366,11 @@ contract EUDTest is Test, Constants {
         assertEq(eud.frozenBalances(account1), amount);
     }
 
-    function testFailUnauthorizedFreeze(address account1, address account2, uint256 amount) public {
+    function testFailUnauthorizedFreeze(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
         vm.assume(account1 != address(this) && account1 != address(0));
         vm.assume(account2 != address(0));
         eud.mint(account1, amount);
@@ -261,7 +379,11 @@ contract EUDTest is Test, Constants {
         eud.freeze(account1, account2, amount);
     }
 
-    function testRelease(address account1, address account2, uint256 amount) public {
+    function testRelease(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
         vm.assume(account1 != address(this) && account1 != address(0));
         vm.assume(account2 != address(0));
         eud.mint(account1, amount);
@@ -274,7 +396,11 @@ contract EUDTest is Test, Constants {
         assertEq(eud.frozenBalances(account2), 0);
     }
 
-    function testFailUnauthorizedRelease(address account1, address account2, uint256 amount) public {
+    function testFailUnauthorizedRelease(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
         vm.assume(account1 != address(this) && account1 != address(0));
         vm.assume(account2 != address(0));
         eud.mint(account1, amount);
@@ -288,7 +414,11 @@ contract EUDTest is Test, Constants {
         assertEq(eud.frozenBalances(account2), 0);
     }
 
-    function testFailReleaseTooManyTokens(address account1, address account2, uint256 amount) public {
+    function testFailReleaseTooManyTokens(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
         vm.assume(account1 != address(this) && account1 != address(0));
         vm.assume(account2 != address(0));
         eud.mint(account1, amount);
@@ -301,7 +431,11 @@ contract EUDTest is Test, Constants {
         assertEq(eud.frozenBalances(account2), 0);
     }
 
-    function testReclaim(address account1, address account2, uint256 amount) public {
+    function testReclaim(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
         vm.assume(account1 != address(0));
         vm.assume(account2 != address(0));
         eud.mint(account1, amount);
@@ -313,7 +447,11 @@ contract EUDTest is Test, Constants {
         assertEq(eud.balanceOf(address(this)), amount);
     }
 
-    function testFailUnauthorizedReclaim(address account1, address account2, uint256 amount) public {
+    function testFailUnauthorizedReclaim(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
         vm.assume(account1 != address(0));
         vm.assume(account2 != address(this));
         eud.mint(account1, amount);
@@ -356,7 +494,12 @@ contract EUDTest is Test, Constants {
         assertEq(eud.allowance(account, address(this)), 0);
     }
 
-    function testPermit(uint8 privateKey, address receiver, uint256 amount, uint256 deadline) public {
+    function testPermit(
+        uint8 privateKey,
+        address receiver,
+        uint256 amount,
+        uint256 deadline
+    ) public {
         vm.assume(privateKey != 0);
         vm.assume(receiver != address(0));
         address owner = vm.addr(privateKey);
@@ -367,7 +510,16 @@ contract EUDTest is Test, Constants {
                 abi.encodePacked(
                     "\x19\x01",
                     eud.DOMAIN_SEPARATOR(),
-                    keccak256(abi.encode(PERMIT_TYPEHASH, owner, receiver, amount, 0, deadline))
+                    keccak256(
+                        abi.encode(
+                            PERMIT_TYPEHASH,
+                            owner,
+                            receiver,
+                            amount,
+                            0,
+                            deadline
+                        )
+                    )
                 )
             )
         );
@@ -378,7 +530,12 @@ contract EUDTest is Test, Constants {
         assertEq(eud.nonces(owner), 1);
     }
 
-    function testFailPermitTooLate(uint8 privateKey, address receiver, uint256 amount, uint256 deadline) public {
+    function testFailPermitTooLate(
+        uint8 privateKey,
+        address receiver,
+        uint256 amount,
+        uint256 deadline
+    ) public {
         deadline = bound(deadline, 0, UINT256_MAX);
         vm.assume(privateKey != 0);
         vm.assume(receiver != address(0));
@@ -390,7 +547,16 @@ contract EUDTest is Test, Constants {
                 abi.encodePacked(
                     "\x19\x01",
                     eud.DOMAIN_SEPARATOR(),
-                    keccak256(abi.encode(PERMIT_TYPEHASH, owner, receiver, amount, 0, deadline))
+                    keccak256(
+                        abi.encode(
+                            PERMIT_TYPEHASH,
+                            owner,
+                            receiver,
+                            amount,
+                            0,
+                            deadline
+                        )
+                    )
                 )
             )
         );
@@ -407,9 +573,7 @@ contract EUDTest is Test, Constants {
         address receiver,
         uint256 amount,
         uint256 deadline
-    )
-        public
-    {
+    ) public {
         vm.assume(privateKey1 != 0 && privateKey2 != 0);
         vm.assume(privateKey1 != privateKey2);
         vm.assume(receiver != address(0));
@@ -422,7 +586,16 @@ contract EUDTest is Test, Constants {
                 abi.encodePacked(
                     "\x19\x01",
                     eud.DOMAIN_SEPARATOR(),
-                    keccak256(abi.encode(PERMIT_TYPEHASH, owner, receiver, amount, 0, deadline))
+                    keccak256(
+                        abi.encode(
+                            PERMIT_TYPEHASH,
+                            owner,
+                            receiver,
+                            amount,
+                            0,
+                            deadline
+                        )
+                    )
                 )
             )
         );
@@ -437,10 +610,12 @@ contract EUDTest is Test, Constants {
         EUDv2 newEud = new EUDv2();
 
         // The Upgraded event is one observable side-effect of a successful upgrade
-        vm.expectEmit(address(eud));
+        vm.expectEmit(true, true, false, true);
         emit Upgraded(address(newEud));
-        eud.upgradeToAndCall(address(newEud), abi.encodeCall(newEud.initializeV2, ()));
-
+        eud.upgradeToAndCall(
+            address(newEud),
+            abi.encodeCall(newEud.initializeV2, ())
+        );
         assertTrue(eud.hasRole(eud.DEFAULT_ADMIN_ROLE(), address(this)));
         assertEq(eud.symbol(), "EUD");
         assertEq(eud.name(), "EuroDollar");
@@ -469,7 +644,6 @@ contract BalanceOf is Test {
     }
 
     function test_totalSupply() public {
-        assertEq(address(eud.eui()), address(0));
         assertEq(eud.totalSupply(), 0);
         eud.mint(address(this), 1000);
         assertEq(eud.totalSupply(), 1000);
@@ -490,32 +664,79 @@ contract BalanceOf is Test {
         eud.grantRole(eui.BURN_ROLE(), address(eui));
 
         assertEq(eud.balanceOf(address(this)), 0, "EUD balance should be 0");
-        assertEq(eui.balanceOf(address(this)), 0, "Initial EUI balance should be 0");
+        assertEq(
+            eui.balanceOf(address(this)),
+            0,
+            "Initial EUI balance should be 0"
+        );
         assertEq(eui.totalSupply(), 0, "Initial EUI total supply should be 0");
         assertEq(eud.totalSupply(), 0, "Initial EUD total supply should be 0");
         assertEq(eui.totalAssets(), 0, "Initial EUI total assets should be 0");
 
         eud.mint(address(this), 1000);
-        assertEq(eud.balanceOf(address(this)), 1000, "Step 1: EUD balance should be 1000");
-        assertEq(eui.balanceOf(address(this)), 0, "Step 1: EUI balance should be 0");
+        assertEq(
+            eud.balanceOf(address(this)),
+            1000,
+            "Step 1: EUD balance should be 1000"
+        );
+        assertEq(
+            eui.balanceOf(address(this)),
+            0,
+            "Step 1: EUI balance should be 0"
+        );
         assertEq(eui.totalSupply(), 0, "Step 1: EUI total supply should be 0");
-        assertEq(eud.totalSupply(), 1000, "Step 1: EUD total supply should be 1000");
+        assertEq(
+            eud.totalSupply(),
+            1000,
+            "Step 1: EUD total supply should be 1000"
+        );
         assertEq(eui.totalAssets(), 0, "Step 1: EUI total assets should be 0");
 
-        eud.setEui(address(eui));
-        assertEq(eud.balanceOf(address(this)), 1000, "Step 2: EUD balance should be 1000");
-        assertEq(eui.balanceOf(address(this)), 0, "Step 2: EUI balance should be 0");
+        assertEq(
+            eud.balanceOf(address(this)),
+            1000,
+            "Step 2: EUD balance should be 1000"
+        );
+        assertEq(
+            eui.balanceOf(address(this)),
+            0,
+            "Step 2: EUI balance should be 0"
+        );
         assertEq(eui.totalSupply(), 0, "Step 2: EUI total supply should be 0");
-        assertEq(eud.totalSupply(), 1000, "Step 2: EUD total supply should be 1000");
+        assertEq(
+            eud.totalSupply(),
+            1000,
+            "Step 2: EUD total supply should be 1000"
+        );
         assertEq(eui.totalAssets(), 0, "Step 2: EUI total assets should be 0");
 
         eui.addToAllowlist(address(this));
         eui.deposit(500, address(this));
-        assertEq(eud.balanceOf(address(this)), 500, "Step 3: EUD balance should be 500");
-        assertEq(eui.balanceOf(address(this)), 500, "Step 3: EUI balance should be 500");
-        assertEq(eui.totalSupply(), 500, "Step 3: EUI total supply should be 500");
-        assertEq(eud.totalSupply(), 1000, "Step 3: EUD total supply should be 1000");
-        assertEq(eui.totalAssets(), 500, "Step 3: EUI total assets should be 500");
+        assertEq(
+            eud.balanceOf(address(this)),
+            500,
+            "Step 3: EUD balance should be 500"
+        );
+        assertEq(
+            eui.balanceOf(address(this)),
+            500,
+            "Step 3: EUI balance should be 500"
+        );
+        assertEq(
+            eui.totalSupply(),
+            500,
+            "Step 3: EUI total supply should be 500"
+        );
+        assertEq(
+            eud.totalSupply(),
+            500,
+            "Step 3: EUD total supply should be 1000"
+        );
+        assertEq(
+            eui.totalAssets(),
+            500,
+            "Step 3: EUI total assets should be 500"
+        );
     }
 }
 
@@ -561,7 +782,10 @@ contract Blocked is Test {
     }
 
     function invariant_blocked() public {
-        assertTrue(eud.blocklist(badActorFrom), "badActorFrom should be blocked");
+        assertTrue(
+            eud.blocklist(badActorFrom),
+            "badActorFrom should be blocked"
+        );
         assertTrue(eud.blocklist(badActorTo), "badActorTo should be blocked");
     }
 
@@ -584,12 +808,17 @@ contract Blocked is Test {
 
     function test_CannotMint() public {
         vm.expectRevert("Account is blocked");
-        eud.mint(badActorTo, 0);
+        eud.investMint(badActorTo, 0);
     }
 
     function test_burn() public {
         eud.burn(badActorFrom, 10);
         assertEq(eud.balanceOf(badActorFrom), 990);
+    }
+
+    function test_CannotBurn() public {
+        vm.expectRevert("Account is blocked");
+        eud.investBurn(badActorFrom, 0);
     }
 
     function test_reclaim() public {

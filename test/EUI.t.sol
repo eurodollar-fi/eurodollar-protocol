@@ -6,8 +6,7 @@ pragma solidity ^0.8.21;
 import {Test} from "forge-std/Test.sol";
 import {ERC1967Proxy} from "oz/proxy/ERC1967/ERC1967Proxy.sol";
 import {Math} from "oz/utils/math/Math.sol";
-import {IEUD} from "../interfaces/IEUD.sol";
-import {IYieldOracle} from "../interfaces/IYieldOracle.sol";
+import {IYieldOracle} from "../src/interfaces/IYieldOracle.sol";
 import {EUI} from "../src/EUI.sol";
 import {EUD} from "../src/EUD.sol";
 import {YieldOracle, MIN_PRICE} from "../src/YieldOracle.sol";
@@ -25,7 +24,7 @@ contract EuroDollarSetup is Test {
 
         EUD eudImplementation = new EUD();
         ERC1967Proxy eudProxy = new ERC1967Proxy(
-            address(eudImplementation), 
+            address(eudImplementation),
             abi.encodeCall(EUD.initialize, ())
         );
         eud = EUD(address(eudProxy));
@@ -40,7 +39,6 @@ contract EuroDollarSetup is Test {
         eui = EUI(address(euiProxy));
         eui.grantRole(eui.ALLOW_ROLE(), owner);
 
-        eud.setEui(address(eui));
         eud.grantRole(eud.MINT_ROLE(), address(eui));
         eud.grantRole(eud.BURN_ROLE(), address(eui));
 
@@ -50,7 +48,9 @@ contract EuroDollarSetup is Test {
 
 contract EUITest is Test, EuroDollarSetup, Constants {
     bytes32 constant PERMIT_TYPEHASH =
-        keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
+        keccak256(
+            "Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)"
+        );
 
     function setUp() public override {
         super.setUp();
@@ -104,13 +104,19 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.balanceOf(address(this)), 0);
     }
 
-    function testFailMintEuiNotAuthorized(address account, uint256 amount) public {
+    function testFailMintEuiNotAuthorized(
+        address account,
+        uint256 amount
+    ) public {
         vm.assume(account != address(this) && account != address(0));
         vm.prank(account);
         eui.mintEUI(account, amount);
     }
 
-    function testFailBurnEuiNotAuthorized(address account, uint256 amount) public {
+    function testFailBurnEuiNotAuthorized(
+        address account,
+        uint256 amount
+    ) public {
         vm.assume(account != address(this) && account != address(0));
         eui.mintEUI(account, amount);
         vm.prank(account);
@@ -228,7 +234,11 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertTrue(eui.allowlist(account));
     }
 
-    function testAddManyToAllowlist(address account1, address account2, address account3) public {
+    function testAddManyToAllowlist(
+        address account1,
+        address account2,
+        address account3
+    ) public {
         address[] memory accounts = new address[](3);
         accounts[0] = account1;
         accounts[1] = account2;
@@ -248,7 +258,11 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertTrue(!eui.allowlist(account));
     }
 
-    function testRemoveManyFromAllowlist(address account1, address account2, address account3) public {
+    function testRemoveManyFromAllowlist(
+        address account1,
+        address account2,
+        address account3
+    ) public {
         address[] memory accounts = new address[](3);
         accounts[0] = account1;
         accounts[1] = account2;
@@ -282,8 +296,16 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertTrue(!eui.allowlist(account));
     }
 
-    function testFreeze(address account1, address account2, uint256 amount) public {
-        vm.assume(account1 != address(this) && account1 != address(0) && account2 != address(0));
+    function testFreeze(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
+        vm.assume(
+            account1 != address(this) &&
+                account1 != address(0) &&
+                account2 != address(0)
+        );
         eui.addToAllowlist(account1);
         eui.addToAllowlist(account2);
         eui.mintEUI(account1, amount);
@@ -293,8 +315,16 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.frozenBalances(account1), amount);
     }
 
-    function testFailUnauthorizedFreeze(address account1, address account2, uint256 amount) public {
-        vm.assume(account1 != address(this) && account1 != address(0) && account2 != address(0));
+    function testFailUnauthorizedFreeze(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
+        vm.assume(
+            account1 != address(this) &&
+                account1 != address(0) &&
+                account2 != address(0)
+        );
         eui.addToAllowlist(account1);
         eui.addToAllowlist(account2);
         eui.mintEUI(account1, amount);
@@ -305,8 +335,16 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.frozenBalances(account1), amount);
     }
 
-    function testRelease(address account1, address account2, uint256 amount) public {
-        vm.assume(account1 != address(this) && account1 != address(0) && account2 != address(0));
+    function testRelease(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
+        vm.assume(
+            account1 != address(this) &&
+                account1 != address(0) &&
+                account2 != address(0)
+        );
         eui.addToAllowlist(account1);
         eui.addToAllowlist(account2);
         eui.mintEUI(account1, amount);
@@ -319,8 +357,16 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.frozenBalances(account2), 0);
     }
 
-    function testFailUnauthorizedRelease(address account1, address account2, uint256 amount) public {
-        vm.assume(account1 != address(this) && account1 != address(0) && account2 != address(0));
+    function testFailUnauthorizedRelease(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
+        vm.assume(
+            account1 != address(this) &&
+                account1 != address(0) &&
+                account2 != address(0)
+        );
         eui.addToAllowlist(account1);
         eui.addToAllowlist(account2);
         eui.mintEUI(account1, amount);
@@ -334,8 +380,16 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.frozenBalances(account2), 0);
     }
 
-    function testFailReleaseTooManyTokens(address account1, address account2, uint256 amount) public {
-        vm.assume(account1 != address(this) && account1 != address(0) && account2 != address(0));
+    function testFailReleaseTooManyTokens(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
+        vm.assume(
+            account1 != address(this) &&
+                account1 != address(0) &&
+                account2 != address(0)
+        );
         eui.addToAllowlist(account1);
         eui.addToAllowlist(account2);
         eui.mintEUI(account1, amount);
@@ -348,7 +402,11 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.frozenBalances(account2), 0);
     }
 
-    function testReclaim(address account1, address account2, uint256 amount) public {
+    function testReclaim(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
         vm.assume(account1 != address(0) && account2 != address(0));
         eui.addToAllowlist(account1);
         eui.addToAllowlist(account2);
@@ -358,8 +416,16 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.balanceOf(account2), amount);
     }
 
-    function testFailUnauthorizedReclaim(address account1, address account2, uint256 amount) public {
-        vm.assume(account1 != address(0) && account2 != address(0) && account1 != account2);
+    function testFailUnauthorizedReclaim(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
+        vm.assume(
+            account1 != address(0) &&
+                account2 != address(0) &&
+                account1 != account2
+        );
         vm.assume(account1 != address(this) && account2 != address(this));
         eui.mintEUI(account1, amount);
         assertEq(eui.balanceOf(account1), amount);
@@ -381,7 +447,11 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.allowance(account, address(this)), amount);
     }
 
-    function testIncreaseAllowance(address account1, address account2, uint256 amount) public {
+    function testIncreaseAllowance(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
         vm.assume(account1 != address(0) && account2 != address(0));
         eui.addToAllowlist(account1);
         eui.addToAllowlist(account2);
@@ -392,7 +462,11 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.allowance(account1, account2), amount);
     }
 
-    function testDecreaseAllowance(address account1, address account2, uint256 amount) public {
+    function testDecreaseAllowance(
+        address account1,
+        address account2,
+        uint256 amount
+    ) public {
         vm.assume(account1 != address(0) && account2 != address(0));
         eui.addToAllowlist(account1);
         eui.addToAllowlist(account2);
@@ -406,7 +480,12 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.allowance(account1, account2), 0);
     }
 
-    function testPermit(uint8 privateKey, address receiver, uint256 amount, uint256 deadline) public {
+    function testPermit(
+        uint8 privateKey,
+        address receiver,
+        uint256 amount,
+        uint256 deadline
+    ) public {
         vm.assume(privateKey != 0);
         vm.assume(receiver != address(0));
         address owner = vm.addr(privateKey);
@@ -420,7 +499,16 @@ contract EUITest is Test, EuroDollarSetup, Constants {
                 abi.encodePacked(
                     "\x19\x01",
                     eui.DOMAIN_SEPARATOR(),
-                    keccak256(abi.encode(PERMIT_TYPEHASH, owner, receiver, amount, 0, deadline))
+                    keccak256(
+                        abi.encode(
+                            PERMIT_TYPEHASH,
+                            owner,
+                            receiver,
+                            amount,
+                            0,
+                            deadline
+                        )
+                    )
                 )
             )
         );
@@ -431,7 +519,12 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.nonces(owner), 1);
     }
 
-    function testFailPermitTooLate(uint8 privateKey, address receiver, uint256 amount, uint256 deadline) public {
+    function testFailPermitTooLate(
+        uint8 privateKey,
+        address receiver,
+        uint256 amount,
+        uint256 deadline
+    ) public {
         deadline = bound(deadline, 0, UINT256_MAX - 1);
         vm.assume(privateKey != 0);
         vm.assume(receiver != address(0));
@@ -446,7 +539,16 @@ contract EUITest is Test, EuroDollarSetup, Constants {
                 abi.encodePacked(
                     "\x19\x01",
                     eui.DOMAIN_SEPARATOR(),
-                    keccak256(abi.encode(PERMIT_TYPEHASH, owner, receiver, amount, 0, deadline))
+                    keccak256(
+                        abi.encode(
+                            PERMIT_TYPEHASH,
+                            owner,
+                            receiver,
+                            amount,
+                            0,
+                            deadline
+                        )
+                    )
                 )
             )
         );
@@ -463,9 +565,7 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         address receiver,
         uint256 amount,
         uint256 deadline
-    )
-        public
-    {
+    ) public {
         vm.assume(privateKey1 != 0 && privateKey2 != 0);
         vm.assume(privateKey1 != privateKey2);
         vm.assume(receiver != address(0));
@@ -480,7 +580,16 @@ contract EUITest is Test, EuroDollarSetup, Constants {
                 abi.encodePacked(
                     "\x19\x01",
                     eui.DOMAIN_SEPARATOR(),
-                    keccak256(abi.encode(PERMIT_TYPEHASH, owner, receiver, amount, 0, deadline))
+                    keccak256(
+                        abi.encode(
+                            PERMIT_TYPEHASH,
+                            owner,
+                            receiver,
+                            amount,
+                            0,
+                            deadline
+                        )
+                    )
                 )
             )
         );
@@ -488,7 +597,12 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         eui.permit(owner, receiver, amount, deadline, v, r, s);
     }
 
-    function testFlipToEui(address owner, address receiver, uint256 amount, uint256 price) public {
+    function testFlipToEui(
+        address owner,
+        address receiver,
+        uint256 amount,
+        uint256 price
+    ) public {
         // Bounds
         amount = bound(amount, 1, 1e39);
         price = bound(price, MIN_PRICE, 1e39);
@@ -506,12 +620,22 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eud.balanceOf(owner), amount);
         vm.startPrank(owner);
         eud.approve(address(eui), amount);
-        eui.flipToEUI(owner, receiver, amount);
+        uint256 shares = eui.deposit(amount, receiver, owner);
         vm.stopPrank();
-        assertEq(eui.balanceOf(receiver), Math.mulDiv(amount, 1e18, price, Math.Rounding.Down));
+
+        assertEq(eui.balanceOf(receiver), shares);
+        assertEq(
+            eui.balanceOf(receiver),
+            Math.mulDiv(amount, 1e18, price, Math.Rounding.Down)
+        );
     }
 
-    function testFailFlipToEuiTooManyTokens(address owner, address receiver, uint256 amount, uint256 price) public {
+    function testFailFlipToEuiTooManyTokens(
+        address owner,
+        address receiver,
+        uint256 amount,
+        uint256 price
+    ) public {
         // Bounds
         amount = bound(amount, 1, 1e39);
         price = bound(price, MIN_PRICE, 1e39);
@@ -529,12 +653,22 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eud.balanceOf(owner), amount);
         vm.startPrank(owner);
         eud.approve(address(eui), amount + 1);
-        eui.flipToEUI(owner, receiver, amount + 1); // Test you cannot flip more than what as been approved
+        uint256 shares = eui.deposit(amount + 1, receiver, owner); // Test you cannot flip more than what as been approved
         vm.stopPrank();
-        assertEq(eui.balanceOf(receiver), Math.mulDiv(amount, 1e18, price, Math.Rounding.Down));
+
+        assertEq(eui.balanceOf(receiver), shares);
+        assertEq(
+            eui.balanceOf(receiver),
+            Math.mulDiv(amount, 1e18, price, Math.Rounding.Down)
+        );
     }
 
-    function testFailFlipToEuiWhilePaused(address owner, address receiver, uint256 amount, uint256 price) public {
+    function testFailFlipToEuiWhilePaused(
+        address owner,
+        address receiver,
+        uint256 amount,
+        uint256 price
+    ) public {
         // Bounds
         amount = bound(amount, 1, 1e39);
         price = bound(price, MIN_PRICE, 1e39);
@@ -553,12 +687,22 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         eui.pause();
         vm.startPrank(owner);
         eud.approve(address(eui), amount);
-        eui.flipToEUI(owner, receiver, amount);
+        uint256 shares = eui.deposit(amount, receiver, owner);
         vm.stopPrank();
-        assertEq(eui.balanceOf(receiver), Math.mulDiv(amount, 1e18, price, Math.Rounding.Down));
+
+        assertEq(eui.balanceOf(receiver), shares);
+        assertEq(
+            eui.balanceOf(receiver),
+            Math.mulDiv(amount, 1e18, price, Math.Rounding.Down)
+        );
     }
 
-    function testFlipToEud(address owner, address receiver, uint256 amount, uint256 price) public {
+    function testFlipToEud(
+        address owner,
+        address receiver,
+        uint256 amount,
+        uint256 price
+    ) public {
         // Bounds
         amount = bound(amount, 1, 1e39);
         price = bound(price, MIN_PRICE, 1e39);
@@ -577,12 +721,21 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.balanceOf(owner), amount);
         vm.startPrank(owner);
         eui.approve(address(eui), amount);
-        eui.flipToEUD(owner, receiver, amount);
+        uint256 assets = eui.redeem(amount, receiver, owner);
         vm.stopPrank();
-        assertEq(eud.balanceOf(receiver), Math.mulDiv(amount, price, 1e18, Math.Rounding.Down));
+
+        assertEq(eud.balanceOf(receiver), assets);
+        assertEq(
+            eud.balanceOf(receiver),
+            Math.mulDiv(amount, price, 1e18, Math.Rounding.Down)
+        );
     }
 
-    function testFlipToEudAttack(address owner, uint256 amount, address attacker) public {
+    function testFlipToEudAttack(
+        address owner,
+        uint256 amount,
+        address attacker
+    ) public {
         // Assumes
         vm.assume(owner != address(0) && owner != address(attacker));
         vm.assume(attacker != address(0) && attacker != address(this));
@@ -604,14 +757,25 @@ contract EUITest is Test, EuroDollarSetup, Constants {
 
         vm.expectRevert();
         vm.prank(attacker);
-        eui.flipToEUD(owner, attacker, amount);
+        eui.redeem(amount, attacker, owner);
 
-        assertEq(eud.balanceOf(attacker), 0, "Attacker did not receive any EUD");
+        assertEq(
+            eud.balanceOf(attacker),
+            0,
+            "Attacker did not receive any EUD"
+        );
     }
 
-    function testFailFlipToEudTooManyTokens(address owner, address receiver, uint256 amount, uint256 price) public {
+    function testFailFlipToEudTooManyTokens(
+        address owner,
+        address receiver,
+        uint256 amount,
+        uint256 extra,
+        uint256 price
+    ) public {
         // Bounds
         amount = bound(amount, 1, 1e39);
+        extra = bound(extra, 1, 1e39);
         price = bound(price, MIN_PRICE, 1e39);
 
         // Assumes
@@ -627,13 +791,23 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         eui.mintEUI(owner, amount);
         assertEq(eui.balanceOf(owner), amount);
         vm.startPrank(owner);
-        eui.approve(address(eui), amount + 1);
-        eui.flipToEUD(owner, receiver, amount + 1);
+        eui.approve(address(eui), amount + extra);
+        uint256 assets = eui.redeem(amount + extra, receiver, owner);
         vm.stopPrank();
-        assertEq(eud.balanceOf(receiver), Math.mulDiv(amount, price, 1e18, Math.Rounding.Down));
+
+        assertEq(eud.balanceOf(receiver), assets);
+        assertEq(
+            eud.balanceOf(receiver),
+            Math.mulDiv(amount, price, 1e18, Math.Rounding.Down)
+        );
     }
 
-    function testFailFlipToEudWhilePaused(address owner, address receiver, uint256 amount, uint256 price) public {
+    function testFailFlipToEudWhilePaused(
+        address owner,
+        address receiver,
+        uint256 amount,
+        uint256 price
+    ) public {
         // Bounds
         amount = bound(amount, 1, 1e39);
         price = bound(price, MIN_PRICE, 1e39);
@@ -653,9 +827,14 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         eui.pause();
         vm.startPrank(owner);
         eui.approve(address(eui), amount);
-        eui.flipToEUD(owner, receiver, amount);
+        uint256 assets = eui.redeem(amount, receiver, owner);
         vm.stopPrank();
-        assertEq(eud.balanceOf(receiver), Math.mulDiv(amount, price, 1e18, Math.Rounding.Down));
+
+        assertEq(eud.balanceOf(receiver), assets);
+        assertEq(
+            eud.balanceOf(receiver),
+            Math.mulDiv(amount, price, 1e18, Math.Rounding.Down)
+        );
     }
 
     function testSetYieldOracle(address newYieldOracle) public {
@@ -680,24 +859,38 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.totalAssets(), yieldOracle.fromEuiToEud(amount));
     }
 
-    function testConvertToShares(uint256 amount, uint256 previousPrice, uint256 currentPrice) public {
+    function testConvertToShares(
+        uint256 amount,
+        uint256 previousPrice,
+        uint256 currentPrice
+    ) public {
         previousPrice = bound(previousPrice, MIN_PRICE, 1e37);
         currentPrice = bound(currentPrice, previousPrice, 1e37);
         amount = bound(amount, 1, 1e37);
         yieldOracle.adminUpdateCurrentPrice(currentPrice);
         yieldOracle.adminUpdatePreviousPrice(previousPrice);
         eud.mint(address(this), amount);
-        assertEq(eui.convertToShares(amount), Math.mulDiv(amount, 1e18, eui.yieldOracle().currentPrice()));
+        assertEq(
+            eui.convertToShares(amount),
+            Math.mulDiv(amount, 1e18, eui.yieldOracle().currentPrice())
+        );
     }
 
-    function testConvertToAssets(uint256 amount, uint256 previousPrice, uint256 currentPrice) public {
+    function testConvertToAssets(
+        uint256 amount,
+        uint256 previousPrice,
+        uint256 currentPrice
+    ) public {
         previousPrice = bound(previousPrice, MIN_PRICE, 1e37);
         currentPrice = bound(currentPrice, previousPrice, 1e37);
         amount = bound(amount, 1, 1e37);
         yieldOracle.adminUpdateCurrentPrice(currentPrice);
         yieldOracle.adminUpdatePreviousPrice(previousPrice);
         eui.mintEUI(address(this), amount);
-        assertEq(eui.convertToAssets(amount), Math.mulDiv(amount, eui.yieldOracle().previousPrice(), 1e18));
+        assertEq(
+            eui.convertToAssets(amount),
+            Math.mulDiv(amount, eui.yieldOracle().previousPrice(), 1e18)
+        );
     }
 
     function testMaxDeposit(address account) public {
@@ -709,14 +902,24 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.maxDeposit(account), 0);
     }
 
-    function testPreviewDeposit(uint256 amount, uint256 previousPrice, uint256 currentPrice) public {
+    function testPreviewDeposit(
+        uint256 amount,
+        uint256 previousPrice,
+        uint256 currentPrice
+    ) public {
         previousPrice = bound(previousPrice, MIN_PRICE, 1e37);
         currentPrice = bound(currentPrice, previousPrice, 1e37);
         yieldOracle.adminUpdateCurrentPrice(currentPrice);
         yieldOracle.adminUpdatePreviousPrice(previousPrice);
         amount = bound(amount, 1, 1e39);
         assertEq(
-            eui.previewDeposit(amount), Math.mulDiv(amount, 1e18, eui.yieldOracle().currentPrice(), Math.Rounding.Down)
+            eui.previewDeposit(amount),
+            Math.mulDiv(
+                amount,
+                1e18,
+                eui.yieldOracle().currentPrice(),
+                Math.Rounding.Down
+            )
         );
     }
 
@@ -726,9 +929,7 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         uint256 amount,
         uint256 currentPrice,
         uint256 previousPrice
-    )
-        public
-    {
+    ) public {
         //Bounds
         amount = bound(amount, 1, 1e39);
         previousPrice = bound(previousPrice, MIN_PRICE, 1e39);
@@ -750,7 +951,10 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         eud.approve(address(eui), amount);
         eui.deposit(amount, receiver);
         vm.stopPrank();
-        assertEq(eui.balanceOf(receiver), Math.mulDiv(amount, 1e18, currentPrice, Math.Rounding.Down));
+        assertEq(
+            eui.balanceOf(receiver),
+            Math.mulDiv(amount, 1e18, currentPrice, Math.Rounding.Down)
+        );
     }
 
     function testFailDepositTooManyTokens(
@@ -759,9 +963,7 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         uint256 amount,
         uint256 currentPrice,
         uint256 previousPrice
-    )
-        public
-    {
+    ) public {
         //Bounds
         amount = bound(amount, 1, 1e39);
         currentPrice = bound(currentPrice, MIN_PRICE, 1e39);
@@ -783,7 +985,10 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         eud.approve(address(eui), amount + 1);
         eui.deposit(amount + 1, receiver);
         vm.stopPrank();
-        assertEq(eui.balanceOf(receiver), Math.mulDiv(amount, 1e18, currentPrice, Math.Rounding.Down));
+        assertEq(
+            eui.balanceOf(receiver),
+            Math.mulDiv(amount, 1e18, currentPrice, Math.Rounding.Down)
+        );
     }
 
     function testFailDepositWhilePaused(
@@ -792,9 +997,7 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         uint256 amount,
         uint256 currentPrice,
         uint256 previousPrice
-    )
-        public
-    {
+    ) public {
         //Bounds
         amount = bound(amount, 1, 1e39);
         currentPrice = bound(currentPrice, MIN_PRICE, 1e39);
@@ -817,7 +1020,10 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         eud.approve(address(eui), amount);
         eui.deposit(amount, receiver);
         vm.stopPrank();
-        assertEq(eui.balanceOf(receiver), Math.mulDiv(amount, 1e18, currentPrice, Math.Rounding.Down));
+        assertEq(
+            eui.balanceOf(receiver),
+            Math.mulDiv(amount, 1e18, currentPrice, Math.Rounding.Down)
+        );
     }
 
     function testMaxMint(address account) public {
@@ -829,14 +1035,24 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.maxMint(account), 0);
     }
 
-    function testPreviewMint(uint256 amount, uint256 previousPrice, uint256 currentPrice) public {
+    function testPreviewMint(
+        uint256 amount,
+        uint256 previousPrice,
+        uint256 currentPrice
+    ) public {
         previousPrice = bound(previousPrice, MIN_PRICE, 1e37);
         currentPrice = bound(currentPrice, previousPrice, 1e37);
         yieldOracle.adminUpdateCurrentPrice(currentPrice);
         yieldOracle.adminUpdatePreviousPrice(previousPrice);
         amount = bound(amount, 1, 1e39);
         assertEq(
-            eui.previewMint(amount), Math.mulDiv(amount, eui.yieldOracle().previousPrice(), 1e18, Math.Rounding.Down)
+            eui.previewMint(amount),
+            Math.mulDiv(
+                amount,
+                eui.yieldOracle().previousPrice(),
+                1e18,
+                Math.Rounding.Down
+            )
         );
     }
 
@@ -846,9 +1062,7 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         uint256 amount,
         uint256 currentPrice,
         uint256 previousPrice
-    )
-        public
-    {
+    ) public {
         //Bounds
         amount = bound(amount, 1, 1e39);
         previousPrice = bound(previousPrice, MIN_PRICE, 1e39);
@@ -874,7 +1088,12 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.balanceOf(receiver), amount);
     }
 
-    function testFailMintWhilePaused(address owner, address receiver, uint256 amount, uint256 price) public {
+    function testFailMintWhilePaused(
+        address owner,
+        address receiver,
+        uint256 amount,
+        uint256 price
+    ) public {
         //Bounds
         amount = bound(amount, 1, 1e39);
         price = bound(price, MIN_PRICE, 1e39);
@@ -899,7 +1118,12 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         vm.stopPrank();
     }
 
-    function testMaxWithdraw(address account, uint256 amount, uint256 previousPrice, uint256 currentPrice) public {
+    function testMaxWithdraw(
+        address account,
+        uint256 amount,
+        uint256 previousPrice,
+        uint256 currentPrice
+    ) public {
         previousPrice = bound(previousPrice, MIN_PRICE, 1e37);
         currentPrice = bound(currentPrice, previousPrice, 1e37);
         yieldOracle.adminUpdateCurrentPrice(currentPrice);
@@ -908,10 +1132,17 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         vm.assume(account != address(0));
         eui.addToAllowlist(account);
         eui.mintEUI(account, amount);
-        assertEq(eui.maxWithdraw(account), Math.mulDiv(amount, previousPrice, 1e18, Math.Rounding.Down));
+        assertEq(
+            eui.maxWithdraw(account),
+            Math.mulDiv(amount, previousPrice, 1e18, Math.Rounding.Down)
+        );
     }
 
-    function testMaxWithdrawPaused(address account, uint256 amount, uint256 price) public {
+    function testMaxWithdrawPaused(
+        address account,
+        uint256 amount,
+        uint256 price
+    ) public {
         amount = bound(amount, 1, 1e39);
         price = bound(price, MIN_PRICE, 1e39);
         yieldOracle.adminUpdateCurrentPrice(price);
@@ -923,13 +1154,25 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.maxWithdraw(account), 0);
     }
 
-    function testPreviewWithdraw(uint256 amount, uint256 previousPrice, uint256 currentPrice) public {
+    function testPreviewWithdraw(
+        uint256 amount,
+        uint256 previousPrice,
+        uint256 currentPrice
+    ) public {
         previousPrice = bound(previousPrice, MIN_PRICE, 1e37);
         currentPrice = bound(currentPrice, previousPrice, 1e37);
         yieldOracle.adminUpdateCurrentPrice(currentPrice);
         yieldOracle.adminUpdatePreviousPrice(previousPrice);
         amount = bound(amount, 1, 1e39);
-        assertEq(eui.previewWithdraw(amount), Math.mulDiv(amount, 1e18, yieldOracle.currentPrice(), Math.Rounding.Down));
+        assertEq(
+            eui.previewWithdraw(amount),
+            Math.mulDiv(
+                amount,
+                1e18,
+                yieldOracle.currentPrice(),
+                Math.Rounding.Down
+            )
+        );
     }
 
     function testWithdraw(
@@ -938,9 +1181,7 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         uint256 amount,
         uint256 previousPrice,
         uint256 currentPrice
-    )
-        public
-    {
+    ) public {
         // Bounds
         amount = bound(amount, 1, 1e39);
         previousPrice = bound(previousPrice, MIN_PRICE, 1e39);
@@ -972,9 +1213,7 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         uint256 amount,
         uint256 previousPrice,
         uint256 currentPrice
-    )
-        public
-    {
+    ) public {
         // Bounds
         amount = bound(amount, 1, 1e39);
         previousPrice = bound(previousPrice, MIN_PRICE, 1e39);
@@ -1006,9 +1245,7 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         uint256 amount,
         uint256 previousPrice,
         uint256 currentPrice
-    )
-        public
-    {
+    ) public {
         // Bounds
         amount = bound(amount, 1, 1e39);
         previousPrice = bound(previousPrice, MIN_PRICE, 1e39);
@@ -1051,18 +1288,33 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         assertEq(eui.maxRedeem(account), 0);
     }
 
-    function testPreviewRedeem(uint256 amount, uint256 previousPrice, uint256 currentPrice) public {
+    function testPreviewRedeem(
+        uint256 amount,
+        uint256 previousPrice,
+        uint256 currentPrice
+    ) public {
         previousPrice = bound(previousPrice, MIN_PRICE, 1e37);
         currentPrice = bound(currentPrice, previousPrice, 1e37);
         yieldOracle.adminUpdateCurrentPrice(currentPrice);
         yieldOracle.adminUpdatePreviousPrice(previousPrice);
         amount = bound(amount, 1, 1e39);
         assertEq(
-            eui.previewRedeem(amount), Math.mulDiv(amount, eui.yieldOracle().previousPrice(), 1e18, Math.Rounding.Down)
+            eui.previewRedeem(amount),
+            Math.mulDiv(
+                amount,
+                eui.yieldOracle().previousPrice(),
+                1e18,
+                Math.Rounding.Down
+            )
         );
     }
 
-    function testRedeem(address owner, address receiver, uint256 amount, uint256 price) public {
+    function testRedeem(
+        address owner,
+        address receiver,
+        uint256 amount,
+        uint256 price
+    ) public {
         // Bounds
         amount = bound(amount, 1, 1e39);
         price = bound(price, MIN_PRICE, 1e39);
@@ -1083,10 +1335,18 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         eui.approve(address(eui), amount);
         eui.redeem(amount, receiver, owner);
         vm.stopPrank();
-        assertEq(eud.balanceOf(receiver), Math.mulDiv(amount, price, 1e18, Math.Rounding.Down));
+        assertEq(
+            eud.balanceOf(receiver),
+            Math.mulDiv(amount, price, 1e18, Math.Rounding.Down)
+        );
     }
 
-    function testFailRedeemTooManyShares(address owner, address receiver, uint256 amount, uint256 price) public {
+    function testFailRedeemTooManyShares(
+        address owner,
+        address receiver,
+        uint256 amount,
+        uint256 price
+    ) public {
         // Bounds
         amount = bound(amount, 1, 1e39);
         price = bound(price, MIN_PRICE, 1e39);
@@ -1106,10 +1366,18 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         eui.approve(address(eui), amount);
         eui.redeem(amount + 1, receiver, owner);
         vm.stopPrank();
-        assertEq(eud.balanceOf(receiver), Math.mulDiv(amount, price, 1e18, Math.Rounding.Down));
+        assertEq(
+            eud.balanceOf(receiver),
+            Math.mulDiv(amount, price, 1e18, Math.Rounding.Down)
+        );
     }
 
-    function testFailRedeemWhilePaused(address owner, address receiver, uint256 amount, uint256 price) public {
+    function testFailRedeemWhilePaused(
+        address owner,
+        address receiver,
+        uint256 amount,
+        uint256 price
+    ) public {
         // Bounds
         amount = bound(amount, 1, 1e39);
         price = bound(price, MIN_PRICE, 1e39);
@@ -1130,7 +1398,10 @@ contract EUITest is Test, EuroDollarSetup, Constants {
         eui.approve(address(eui), amount);
         eui.redeem(amount, receiver, owner);
         vm.stopPrank();
-        assertEq(eud.balanceOf(receiver), Math.mulDiv(amount, price, 1e18, Math.Rounding.Down));
+        assertEq(
+            eud.balanceOf(receiver),
+            Math.mulDiv(amount, price, 1e18, Math.Rounding.Down)
+        );
     }
 
     function invariant_assetIsEud() external {
@@ -1143,9 +1414,12 @@ contract EUITest is Test, EuroDollarSetup, Constants {
     function testAuthorizeUpgrade() public {
         EUIv2 newEui = new EUIv2(address(eud));
 
-        vm.expectEmit(address(eui));
+        vm.expectEmit(true, true, false, true);
         emit Upgraded(address(newEui));
-        eui.upgradeToAndCall(address(newEui), abi.encodeCall(EUIv2.initializeV2, ()));
+        eui.upgradeToAndCall(
+            address(newEui),
+            abi.encodeCall(EUIv2.initializeV2, ())
+        );
 
         assertEq(eui.hasRole(eui.DEFAULT_ADMIN_ROLE(), address(this)), true);
         assertEq(eui.symbol(), "EUI");
@@ -1173,17 +1447,17 @@ contract FlipFlop is Test, EuroDollarSetup {
         eud.approve(nobody, 100);
 
         vm.prank(nobody);
-        eui.flipToEUI(someone, someone, 100);
+        eui.deposit(100, someone, someone);
 
         assertEq(eui.balanceOf(someone), 100);
 
         // check nobody flip back reverts
         vm.expectRevert(bytes("ERC20: insufficient allowance"));
         vm.prank(nobody);
-        eui.flipToEUD(someone, someone, 100);
+        eui.redeem(100, someone, someone);
 
         vm.prank(someone);
-        eui.flipToEUD(someone, someone, 100);
+        eui.redeem(100, someone, someone);
 
         assertEq(eud.balanceOf(someone), 100);
     }

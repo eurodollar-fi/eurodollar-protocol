@@ -17,8 +17,8 @@ contract EUD is
     Initializable,
     PausableUpgradeable,
     ERC20PermitUpgradeable,
-    UUPSUpgradeable,
-    AccessControlUpgradeable
+    AccessControlUpgradeable,
+    UUPSUpgradeable
 {
     // @notice Blocklist contains addresses that are not allowed to send or receive tokens.
     mapping(address => bool) public blocklist;
@@ -38,12 +38,6 @@ contract EUD is
      */
     modifier notBlocked(address account) {
         require(blocklist[account] == false, "Account is blocked");
-        _;
-    }
-
-    modifier notBlocked2(address a, address b) {
-        require(blocklist[a] == false, "Account is blocked");
-        if (a != b) require(blocklist[b] == false, "Account is blocked");
         _;
     }
 
@@ -88,7 +82,8 @@ contract EUD is
     )
         public
         override
-        notBlocked2(msg.sender, to)
+        notBlocked(msg.sender)
+        notBlocked(to)
         whenNotPaused
         returns (bool)
     {
@@ -110,7 +105,8 @@ contract EUD is
     )
         public
         override
-        notBlocked2(from, to)
+        notBlocked(from)
+        notBlocked(to)
         whenNotPaused
         returns (bool)
     {
@@ -121,11 +117,10 @@ contract EUD is
     /**
      * @notice  Mints new tokens and adds them to the specified account.
      * @notice  This function can only be called by an account with the `MINT_ROLE`.
-     * @notice  The recipient's account must not be on the blocklist.
      * @param   to  The address to receive the newly minted tokens.
      * @param   amount  The amount of tokens to mint to the account.
      */
-    function mint(address to, uint256 amount) public onlyRole(MINT_ROLE) notBlocked(to) {
+    function mint(address to, uint256 amount) public onlyRole(MINT_ROLE) {
         _mint(to, amount);
     }
 
@@ -140,6 +135,34 @@ contract EUD is
     }
 
     /**
+     * @notice  Mints new tokens and adds them to the specified account.
+     * @notice  This function can only be called by an account with the `MINT_ROLE`.
+     * @notice  The recipient's account must not be on the blocklist.
+     * @param   to  The address to receive the newly minted tokens.
+     * @param   amount  The amount of tokens to mint to the account.
+     */
+    function investMint(
+        address to,
+        uint256 amount
+    ) public onlyRole(MINT_ROLE) notBlocked(to) whenNotPaused {
+        _mint(to, amount);
+    }
+
+    /**
+     * @notice  Burns tokens as if performing a transferFrom and burn in one call.
+     * @notice  This function is specifically tailored to EUI use cases.
+     * @notice  This function can only be called by an account with the `BURN_ROLE`.
+     * @param   from  The address from which tokens will be burned.
+     * @param   amount  The amount of tokens to be burned.
+     */
+    function investBurn(
+        address from,
+        uint256 amount
+    ) public onlyRole(BURN_ROLE) notBlocked(from) whenNotPaused {
+        _burn(from, amount);
+    }
+
+    /**
      * @notice  Burns tokens as if performing a transferFrom and burn in one call.
      * @notice  This function is specifically tailored to EUI use cases.
      * @notice  This function can only be called by an account with the `BURN_ROLE`.
@@ -147,11 +170,18 @@ contract EUD is
      * @param   spender  The address that is allowed to spend the tokens.
      * @param   amount  The amount of tokens to be burned.
      */
-    function burnFrom(address from, address spender, uint256 amount) public whenNotPaused onlyRole(BURN_ROLE) {
-        if (from != spender) {
-            _spendAllowance(from, spender, amount);
-        }
-
+    function investBurn(
+        address from,
+        address spender,
+        uint256 amount
+    )
+        public
+        onlyRole(BURN_ROLE)
+        notBlocked(from)
+        notBlocked(spender)
+        whenNotPaused
+    {
+        if (from != spender) _spendAllowance(from, spender, amount);
         _burn(from, amount);
     }
 

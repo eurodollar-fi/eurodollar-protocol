@@ -19,9 +19,9 @@ interface IEUD {
         uint256 amount
     ) external returns (bool);
 
-    function mint(address to, uint256 amount) external;
+    function investMint(address to, uint256 amount) external;
 
-    function burn(address from, uint256 amount) external;
+    function investBurn(address from, uint256 amount) external;
 
-    function burnFrom(address from, address spender, uint256 amount) external;
+    function investBurn(address from, address spender, uint256 amount) external;
 }
