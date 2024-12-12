@@ -127,7 +127,11 @@ contract Validator is AccessControl, IValidator {
      * @return valid True if the transfer is valid, false otherwise.
      */
     function isValid(address from, address to) external view returns (bool valid) {
-        return accountStatus[from] == Status.BLACKLISTED ? to == address(0x0) : accountStatus[to] != Status.BLACKLISTED;
+        return to == address(0x0)
+            || (
+                accountStatus[to] != Status.BLACKLISTED
+                    && (from == address(0x0) || accountStatus[from] != Status.BLACKLISTED)
+            );
     }
 
     /**
