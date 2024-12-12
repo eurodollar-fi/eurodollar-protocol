@@ -243,6 +243,8 @@ contract InvestToken is
      * @return shares The number of shares (EUI) received.
      */
     function deposit(uint256 assets, address receiver) public returns (uint256 shares) {
+        if (receiver != msg.sender) require(!validator.isBlacklisted(msg.sender), "account blacklisted");
+
         shares = convertToShares(assets);
         usde.burn(msg.sender, assets);
         _mint(receiver, shares);
@@ -281,9 +283,10 @@ contract InvestToken is
      */
     function redeem(uint256 shares, address receiver, address owner) public returns (uint256 assets) {
         if (owner != msg.sender) _spendAllowance(owner, msg.sender, shares);
+
         assets = convertToAssets(shares);
         _burn(owner, shares);
-        usde.mint(receiver, assets);
+        usde.mint(receiver, assets); // receiver is checked to not be blacklisted here
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }

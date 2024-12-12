@@ -144,4 +144,20 @@ contract Validator is AccessControl, IValidator {
                     && (from == address(0x0) || accountStatus[from] == Status.WHITELISTED)
             );
     }
+
+    /**
+     * @dev Returns whether account is whitelisted.
+     * @return True if account is whitelisted.
+     */
+    function isWhitelisted(address account) external view returns (bool) {
+        return accountStatus[account] == Status.WHITELISTED;
+    }
+
+    /**
+     * @dev Returns whether account is blacklisted.
+     * @return True if account is blacklisted.
+     */
+    function isBlacklisted(address account) external view returns (bool) {
+        return accountStatus[account] == Status.BLACKLISTED;
+    }
 }
