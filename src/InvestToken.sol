@@ -11,7 +11,6 @@ import {ERC20PermitUpgradeable} from
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
-import {IERC4626} from "@openzeppelin/contracts/interfaces/IERC4626.sol";
 import {IValidator} from "./interfaces/IValidator.sol";
 import {IUSDE} from "./interfaces/IUSDE.sol";
 import {IYieldOracle} from "./interfaces/IYieldOracle.sol";
@@ -25,7 +24,6 @@ contract InvestToken is
     ERC20Upgradeable,
     ERC20PausableUpgradeable,
     ERC20PermitUpgradeable,
-    IERC4626,
     AccessControlUpgradeable,
     UUPSUpgradeable
 {
@@ -53,6 +51,10 @@ contract InvestToken is
     /* EVENTS */
 
     event Recovered(address indexed from, address indexed to, uint256 amount);
+    event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);
+    event Withdraw(
+        address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
+    );
 
     /* CONSTRUCTOR */
 
@@ -246,79 +248,6 @@ contract InvestToken is
         _mint(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
-    }
-
-    // Mint
-    /**
-     * @notice Returns The maximum amount of shares (EUI) that can be minted for a user.
-     * @return uint256 The maximum amount of shares (EUI) that can be minted for a user.
-     */
-    function maxMint(address) public view returns (uint256) {
-        if (paused()) {
-            return 0;
-        }
-        return type(uint256).max;
-    }
-
-    /**
-     * @notice Previews the amount of assets (USDE) that must be deposited to mint the specified number of shares (EUI).
-     * @param shares Amount of shares (EUI).
-     * @return uint256 The amount of assets (USDE) that must be deposited to mint the specified number of shares (EUI).
-     */
-    function previewMint(uint256 shares) public view returns (uint256) {
-        return convertToAssets(shares);
-    }
-
-    /**
-     * @notice Deposits the neccesary amount of assets (USDE) to mint the specified amount of assets (EUI) to the receiver's address.
-     * @param shares The number of shares (EUI) to mint.
-     * @param receiver The address of the receiver who will receive the shares (EUI).
-     * @return assets The amount of assets (USDE) minted deposited to mint the specified number of shares (EUI).
-     */
-    function mint(uint256 shares, address receiver) public returns (uint256 assets) {
-        assets = convertToAssets(shares);
-        usde.burn(msg.sender, assets);
-        _mint(receiver, shares);
-
-        emit Deposit(msg.sender, receiver, assets, shares);
-    }
-
-    // Withdraw
-    /**
-     * @notice Returns the maximum amount of assets (USDE) that the specified owner can withdraw based on their share (EUI) balance.
-     * @param owner The address of the owner whose maximum withdrawal amount is queried.
-     * @return uint256 The maximum amount of assets (USDE) that the owner can withdraw based on their share (EUI) balance.
-     */
-    function maxWithdraw(address owner) public view returns (uint256) {
-        if (paused()) {
-            return 0;
-        }
-        return convertToAssets(this.balanceOf(owner));
-    }
-
-    /**
-     * @notice Previews the amount of shares (EUI) that will be redeemed when the specified amount of assets (USDE) is withdrawn.
-     * @param assets The amount of assets (USDE) to be withdrawn.
-     * @return uint256 The preview amount of shares (EUI) that will be redeemed for the given amount of assets (USDE).
-     */
-    function previewWithdraw(uint256 assets) public view returns (uint256) {
-        return convertToShares(assets);
-    }
-
-    /**
-     * @notice Redeem the necessary amount of shares (EUI) from the vault to receieve specified amount of assets (USDE).
-     * @param assets The amount of assets (USDE) to be withdrawn.
-     * @param receiver The address that will receive the assets (USDE) upon withdrawal.
-     * @param owner The address holding the shares (EUI) to be redeemed.
-     * @return shares The amount of shares (EUI) to be withdrawn.
-     */
-    function withdraw(uint256 assets, address receiver, address owner) public returns (uint256 shares) {
-        shares = convertToShares(assets);
-        if (owner != msg.sender) _spendAllowance(owner, msg.sender, shares);
-        _burn(owner, shares);
-        usde.mint(receiver, assets);
-
-        emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
 
     // Redeem
