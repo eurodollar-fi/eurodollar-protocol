@@ -127,7 +127,11 @@ contract Validator is AccessControl, IValidator {
      * @return valid True if the transfer is valid, false otherwise.
      */
     function isValid(address from, address to) external view returns (bool valid) {
-        return accountStatus[from] == Status.BLACKLISTED ? to == address(0x0) : accountStatus[to] != Status.BLACKLISTED;
+        return to == address(0x0)
+            || (
+                accountStatus[to] != Status.BLACKLISTED
+                    && (from == address(0x0) || accountStatus[from] != Status.BLACKLISTED)
+            );
     }
 
     /**
@@ -143,5 +147,21 @@ contract Validator is AccessControl, IValidator {
                 accountStatus[to] == Status.WHITELISTED
                     && (from == address(0x0) || accountStatus[from] == Status.WHITELISTED)
             );
+    }
+
+    /**
+     * @dev Returns whether account is whitelisted.
+     * @return True if account is whitelisted.
+     */
+    function isWhitelisted(address account) external view returns (bool) {
+        return accountStatus[account] == Status.WHITELISTED;
+    }
+
+    /**
+     * @dev Returns whether account is blacklisted.
+     * @return True if account is blacklisted.
+     */
+    function isBlacklisted(address account) external view returns (bool) {
+        return accountStatus[account] == Status.BLACKLISTED;
     }
 }
