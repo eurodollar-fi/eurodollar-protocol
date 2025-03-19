@@ -34,6 +34,7 @@ contract USDE is
     bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
     bytes32 public constant RESCUER_ROLE = keccak256("RESCUER_ROLE");
     bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    bytes32 public constant INVEST_TOKEN_ROLE = keccak256("INVEST_TOKEN_ROLE");
 
     /* STATE VARIABLES */
 
@@ -52,6 +53,8 @@ contract USDE is
      * @custom:oz-upgrades-unsafe-allow constructor
      */
     constructor(IValidator _validator) {
+        require(address(_validator) != address(0), "Validator cannot be zero address");
+
         validator = _validator;
         _disableInitializers();
     }
@@ -67,6 +70,7 @@ contract USDE is
         __AccessControl_init();
         __UUPSUpgradeable_init();
 
+        require(_initialOwner != address(0), "Owner cannot be zero address");
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
     }
 
@@ -109,7 +113,7 @@ contract USDE is
      * @param amount Amount of tokens to burn
      * @return bool indicating success
      */
-    function burn(address from, uint256 amount) public onlyRole(BURN_ROLE) returns (bool) {
+    function burn(address from, uint256 amount) public onlyRole(INVEST_TOKEN_ROLE) returns (bool) {
         _burn(from, amount);
 
         return true;
@@ -170,10 +174,6 @@ contract USDE is
      */
     function unpause() public onlyRole(PAUSER_ROLE) {
         _unpause();
-    }
-
-    function renounceRole(bytes32, address) public pure override {
-        revert();
     }
 
     // ERC1967 Proxy

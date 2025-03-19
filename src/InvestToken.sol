@@ -65,6 +65,8 @@ contract InvestToken is
      * @custom:oz-upgrades-unsafe-allow constructor
      */
     constructor(IValidator _validator, IUSDE _usde) {
+        require(address(_validator) != address(0), "Validator cannot be zero address");
+        require(address(_usde) != address(0), "USDE cannot be zero address");
         validator = _validator;
         usde = _usde;
 
@@ -89,6 +91,8 @@ contract InvestToken is
         __ERC20Permit_init(_name);
         __AccessControl_init();
         __UUPSUpgradeable_init();
+
+        require(_initialOwner != address(0), "Owner cannot be zero address");
 
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
 
@@ -124,18 +128,6 @@ contract InvestToken is
      */
     function mint(address to, uint256 amount) public onlyRole(MINT_ROLE) returns (bool) {
         _mint(to, amount);
-
-        return true;
-    }
-
-    /**
-     * @dev Burns tokens. Can only be called by accounts with BURN_ROLE.
-     * @param from Address to burn tokens from
-     * @param amount Amount of tokens to burn
-     * @return bool indicating success
-     */
-    function burn(address from, uint256 amount) public onlyRole(BURN_ROLE) returns (bool) {
-        _burn(from, amount);
 
         return true;
     }
@@ -243,10 +235,10 @@ contract InvestToken is
      * @return shares The number of shares (EUI) received.
      */
     function deposit(uint256 assets, address receiver) public returns (uint256 shares) {
-        if (receiver != msg.sender) require(!validator.isBlacklisted(msg.sender), "account blacklisted");
+        require(!validator.isBlacklisted(msg.sender), "caller blacklisted");
 
         shares = convertToShares(assets);
-        usde.burn(msg.sender, assets);
+        require(usde.burn(msg.sender, assets), "burning failed");
         _mint(receiver, shares);
 
         emit Deposit(msg.sender, receiver, assets, shares);
@@ -286,7 +278,7 @@ contract InvestToken is
 
         assets = convertToAssets(shares);
         _burn(owner, shares);
-        usde.mint(receiver, assets); // receiver is checked to not be blacklisted here
+        require(usde.mint(receiver, assets), "minting failed"); // receiver is checked to not be blacklisted here
 
         emit Withdraw(msg.sender, receiver, owner, assets, shares);
     }
@@ -298,6 +290,8 @@ contract InvestToken is
      * @param _yieldOracle Address of the new yield oracle
      */
     function changeYieldOracle(IYieldOracle _yieldOracle) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(address(_yieldOracle) != address(0), "YieldOracle cannot be zero address");
+
         yieldOracle = _yieldOracle;
     }
 
