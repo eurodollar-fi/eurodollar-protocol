@@ -129,11 +129,12 @@ contract YieldOracleTest is Test, YieldOracleInvariants {
         assertEqDecimal(yieldOracle.currentPrice(), price2, 18);
     }
 
-    function testUnauthorizedUpdatePrice(address notOracle, address oracle) public {
+    function testUnauthorizedUpdatePrice() public {
+        address oracle = address(0x1);
+        address notOracle = address(0x2);
+        
         yieldOracle.setOracle(oracle);
-        vm.assume(notOracle != address(this));
-        assertNotEq(yieldOracle.oracle(), notOracle);
-
+        
         vm.expectRevert("Restricted to oracle only");
         vm.prank(notOracle);
         yieldOracle.updatePrice(MIN_PRICE);

@@ -11,6 +11,7 @@ import {ERC20PermitUpgradeable} from
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
+import "@openzeppelin/contracts-upgradeable/utils/cryptography/EIP712Upgradeable.sol";
 import {IValidator} from "./interfaces/IValidator.sol";
 import {IUSDE} from "./interfaces/IUSDE.sol";
 import {IYieldOracle} from "./interfaces/IYieldOracle.sol";
@@ -47,6 +48,13 @@ contract InvestToken is
 
     /// @notice Address of the yield oracle
     IYieldOracle public yieldOracle;
+
+    /// @notice Free burn nonce
+    mapping(address => uint256) public burnNonces;
+
+    /// @notice Typed hash for burn request
+    bytes32 public constant BURN_REQUEST_TYPEHASH = 
+        keccak256("BurnRequest(address from,uint256 amount,uint256 nonce,uint256 deadline)");
 
     /* EVENTS */
 
@@ -132,28 +140,53 @@ contract InvestToken is
         return true;
     }
 
-    /**
-     * @dev Burns tokens with signature verification. Can only be called by accounts with BURN_ROLE.
+     /**
+     * @dev Burns tokens with EIP-712 signature verification.
      * @param from Address to burn tokens from
      * @param amount Amount of tokens to burn
-     * @param h Hash of the message signed
+     * @param deadline Timestamp after which the signature is invalid
      * @param signature Signature of the message
      * @return bool indicating success
      */
     function burn(
         address from,
         uint256 amount,
-        bytes32 h,
+        uint256 deadline,
         bytes memory signature
     )
         public
         onlyRole(BURN_ROLE)
         returns (bool)
     {
-        require(from.isValidSignatureNow(h, signature), "signature/hash does not match");
-
+        // Check if deadline has passed
+        require(block.timestamp <= deadline, "Signature expired");
+        
+        // Get current nonce for the address
+        uint256 nonce = burnNonces[from];
+        
+        // Create the struct hash
+        bytes32 structHash = keccak256(
+            abi.encode(
+                BURN_REQUEST_TYPEHASH,
+                from,
+                amount,
+                nonce,
+                deadline
+            )
+        );
+        
+        // Generate the EIP-712 message digest
+        bytes32 digest = _hashTypedDataV4(structHash);
+        
+        // Verify signature
+        require(from.isValidSignatureNow(digest, signature), "Invalid signature");
+        
+        // Increment nonce to prevent replay
+        burnNonces[from]++;
+        
+        // Execute the burn
         _burn(from, amount);
-
+    
         return true;
     }
 
