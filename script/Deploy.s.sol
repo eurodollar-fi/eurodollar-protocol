@@ -50,6 +50,7 @@ contract Deploy is Script {
 
     function deployUSDE(IValidator _validator, address _initialOwner) public returns (IUSDE) {
         address implementation = address(new USDE(_validator));
+        console.log("USDE implementation: ", implementation);
         address proxy = address(new ERC1967Proxy(implementation, abi.encodeCall(USDE.initialize, (_initialOwner))));
         return IUSDE(proxy);
     }
@@ -66,6 +67,7 @@ contract Deploy is Script {
         returns (address)
     {
         address implementation = address(new InvestToken(_validator, _usde));
+        console.log("InvestToken implementation: ", implementation);
         address proxy = address(
             new ERC1967Proxy(
                 implementation, abi.encodeCall(InvestToken.initialize, (_name, _symbol, _initialOwner, _yieldOracle))

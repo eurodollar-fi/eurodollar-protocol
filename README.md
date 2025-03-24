@@ -91,3 +91,7 @@ forge script script/Deploy.s.sol
     --fork-url http://localhost:8545
     --broadcast
 ```
+Or deploy Onchain:
+```bash
+forge script script/Deploy.s.sol --rpc-url holesky --broadcast --verify
+```
