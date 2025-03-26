@@ -17,44 +17,44 @@ uint256 constant NO_PRICE = 0;
 
 error OwnableUnauthorizedAccount(address account);
 
-abstract contract YieldOracleInvariants is Test, Constants {
+abstract contract YieldOracleBase is Test, Constants {
     YieldOracle public yieldOracle;
 
-    // function invariant_MonotonePrices() external view {
-    //     assertGe(yieldOracle.currentPrice(), yieldOracle.previousPrice(), "Current price must never decrease over time");
-    //     if (yieldOracle.nextPrice() > 0) {
-    //         assertGe(yieldOracle.nextPrice(), yieldOracle.currentPrice(), "Next price must never decrease over time");
-    //     }
-    // }
+    function monotonePrices() external view {
+        assertGe(yieldOracle.currentPrice(), yieldOracle.previousPrice(), "Current price must never decrease over time");
+        if (yieldOracle.nextPrice() > 0) {
+            assertGe(yieldOracle.nextPrice(), yieldOracle.currentPrice(), "Next price must never decrease over time");
+        }
+    }
 
-    // function invariant_MinPrice() external view {
-    //     assertGe(yieldOracle.currentPrice(), MIN_PRICE, "Prices must always be at least MIN_PRICE");
-    //     assertGe(yieldOracle.previousPrice(), MIN_PRICE, "Prices must always be at least MIN_PRICE");
-    // }
+    function minPrice() external view {
+        assertGe(yieldOracle.currentPrice(), MIN_PRICE, "Prices must always be at least MIN_PRICE");
+        assertGe(yieldOracle.previousPrice(), MIN_PRICE, "Prices must always be at least MIN_PRICE");
+    }
 
-    // function invariant_NoFreeLunch() external view {
-    //     uint256 someEud = 1.41247819372198e25;
-    //     uint256 someEui = yieldOracle.assetsToShares(someEud);
+    function noFreeLunch() external view {
+        uint256 someEud = 1.41247819372198e25;
+        uint256 someEui = yieldOracle.assetsToShares(someEud);
 
-    //     assertLe(
-    //         yieldOracle.sharesToAssets(someEui), someEud, "Converting back and forth should never incease balance"
-    //     );
-    // }
+        assertLe(
+            yieldOracle.sharesToAssets(someEui), someEud, "Converting back and forth should never incease balance"
+        );
+    }
 
-    // function invariant_PriceIncrease() external view {
-    //     assertGt(yieldOracle.maxPriceIncrease(), 0, "Price increase should be greater than 0");
-    // }
+    function priceIncrease() public view {
+        assertGt(yieldOracle.maxPriceIncrease(), 0, "Price increase should be greater than 0");
+    }
 
-    // function invariant_Delay() external view {
-    //     assertGt(yieldOracle.updateDelay(), 0, "Update delay should be greater than 0");
-    //     assertGt(yieldOracle.commitDelay(), 0, "Commit delay should be greater than 0");
-    //     assertGt(
-    //         yieldOracle.updateDelay(), yieldOracle.commitDelay(), "Update delay should be greater than commit delay"
-    //     );
-    // }
+    function delay() external view {
+        assertGt(yieldOracle.updateDelay(), 0, "Update delay should be greater than 0");
+        assertGt(yieldOracle.commitDelay(), 0, "Commit delay should be greater than 0");
+        assertGt(
+            yieldOracle.updateDelay(), yieldOracle.commitDelay(), "Update delay should be greater than commit delay"
+        );
+    }
 }
 
-contract YieldOracleTest is Test, YieldOracleInvariants {
+contract YieldOracleTest is Test, YieldOracleBase {
     function setUp() public {
         yieldOracle = new YieldOracle(address(this), address(0x0));
     }
@@ -65,6 +65,7 @@ contract YieldOracleTest is Test, YieldOracleInvariants {
         assertEq(yieldOracle.currentPrice(), MIN_PRICE);
         assertEq(yieldOracle.nextPrice(), NO_PRICE);
         assertEq(yieldOracle.maxPriceIncrease(), 1e17);
+        console.log(yieldOracle.maxPriceIncrease());
         assertEq(yieldOracle.updateDelay(), 1 days);
         assertEq(yieldOracle.commitDelay(), 1 hours);
     }
@@ -242,7 +243,7 @@ contract YieldOracleTest is Test, YieldOracleInvariants {
     }
 }
 
-contract Ownable is Test, YieldOracleInvariants {
+contract Ownable is Test, YieldOracleBase {
     address admin;
     address pauser;
     address oracle;
@@ -324,7 +325,7 @@ contract Ownable is Test, YieldOracleInvariants {
     }
 }
 
-contract UpdatePrice is Test, YieldOracleInvariants {
+contract UpdatePrice is Test, YieldOracleBase {
     function setUp() public {
         yieldOracle = new YieldOracle(address(this), address(this));
 
@@ -414,7 +415,7 @@ contract UpdatePrice is Test, YieldOracleInvariants {
     }
 }
 
-contract CommitPrice is Test, YieldOracleInvariants {
+contract CommitPrice is Test, YieldOracleBase {
     function setUp() public {
         yieldOracle = new YieldOracle(address(this), address(this));
 
@@ -478,7 +479,7 @@ contract CommitPrice is Test, YieldOracleInvariants {
     }
 }
 
-contract AdminUpdates is Test, YieldOracleInvariants {
+contract AdminUpdates is Test, YieldOracleBase {
     function setUp() public {
         yieldOracle = new YieldOracle(address(this), address(this));
 

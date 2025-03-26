@@ -20,18 +20,22 @@ import {InvestToken} from "../src/InvestToken.sol";
 contract Deploy is Script {
     function run() external {
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
+        address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
 
-        IValidator validator = deployValidator(msg.sender, msg.sender, msg.sender);
+
+        console.log("Deployer address: ", deployer);
+
+        IValidator validator = deployValidator(deployer, deployer, deployer);
         console.log("Deployed Validator: ", address(validator));
 
-        IUSDE usde = deployUSDE(validator, msg.sender);
+        IUSDE usde = deployUSDE(validator, deployer);
         console.log("Deployed USDE: ", address(usde));
 
-        IYieldOracle yieldOracle = deployYieldOracle(msg.sender, msg.sender);
+        IYieldOracle yieldOracle = deployYieldOracle(deployer, deployer);
         console.log("Deployed YieldOracle: ", address(yieldOracle));
 
         address investToken =
-            deployInvestToken(validator, usde, "Eurodollar Invest Token", "EUI", msg.sender, yieldOracle);
+            deployInvestToken(validator, usde, "Eurodollar Invest Token", "EUI", deployer, yieldOracle);
         console.log("Deployed InvestToken EUI: ", investToken);
 
         vm.stopBroadcast();
