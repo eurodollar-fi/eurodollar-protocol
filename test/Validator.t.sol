@@ -25,7 +25,7 @@ contract ValidatorTest is Test {
         validator = new Validator(owner, whitelister, blacklister);
     }
 
-    function testRoleAssignment() public {
+    function testRoleAssignment() public view {
         assertTrue(validator.hasRole(validator.DEFAULT_ADMIN_ROLE(), owner));
         assertTrue(validator.hasRole(validator.WHITELISTER_ROLE(), whitelister));
         assertTrue(validator.hasRole(validator.BLACKLISTER_ROLE(), blacklister));

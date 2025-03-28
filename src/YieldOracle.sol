@@ -46,7 +46,10 @@ contract YieldOracle is IYieldOracle, Ownable {
 
     /*  CONSTRUCTOR */
 
-    constructor(address _initialOwner, address _initialOracle) Ownable(_initialOwner) {
+    constructor(
+        address _initialOwner,
+        address _initialOracle
+    ) Ownable(_initialOwner) {
         oracle = _initialOracle;
 
         previousPrice = MIN_PRICE;
@@ -68,7 +71,10 @@ contract YieldOracle is IYieldOracle, Ownable {
      */
     function updatePrice(uint256 price) external onlyOracle {
         // Enforce at least updateDelay between updates
-        require(lastUpdate + updateDelay < block.timestamp, "Insufficient update delay");
+        require(
+            lastUpdate + updateDelay < block.timestamp,
+            "Insufficient update delay"
+        );
 
         if (nextPrice != NO_PRICE) {
             previousPrice = currentPrice;
@@ -77,7 +83,10 @@ contract YieldOracle is IYieldOracle, Ownable {
             emit PriceCommitted(currentPrice);
         }
 
-        require(price - currentPrice <= maxPriceIncrease, "Price out of bounds");
+        require(
+            price - currentPrice <= maxPriceIncrease,
+            "Price out of bounds"
+        );
 
         nextPrice = price;
         lastUpdate = block.timestamp;
@@ -92,7 +101,10 @@ contract YieldOracle is IYieldOracle, Ownable {
         require(nextPrice - currentPrice >= 0, "Price out of bounds");
 
         // Enforce at least commitDelay after the last update
-        require(lastUpdate + commitDelay < block.timestamp, "Insufficient commit delay");
+        require(
+            lastUpdate + commitDelay < block.timestamp,
+            "Insufficient commit delay"
+        );
 
         previousPrice = currentPrice;
         currentPrice = nextPrice;
@@ -144,7 +156,10 @@ contract YieldOracle is IYieldOracle, Ownable {
      * @param price The new current price.
      */
     function setCurrentPrice(uint256 price) external onlyOwner {
-        require(MIN_PRICE <= price && previousPrice <= price, "Price out of bounds");
+        require(
+            MIN_PRICE <= price && previousPrice <= price,
+            "Price out of bounds"
+        );
 
         currentPrice = price;
     }
@@ -154,7 +169,10 @@ contract YieldOracle is IYieldOracle, Ownable {
      * @param price The new previous price.
      */
     function setPreviousPrice(uint256 price) external onlyOwner {
-        require(MIN_PRICE <= price && price <= currentPrice, "Price out of bounds");
+        require(
+            MIN_PRICE <= price && price <= currentPrice,
+            "Price out of bounds"
+        );
 
         previousPrice = price;
     }

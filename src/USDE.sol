@@ -4,10 +4,8 @@ pragma solidity ^0.8.21;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {ERC20PausableUpgradeable} from
-    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
-import {ERC20PermitUpgradeable} from
-    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import {ERC20PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
+import {ERC20PermitUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
@@ -46,8 +44,10 @@ contract USDE is
     mapping(address => uint256) public burnNonces;
 
     /// @notice Typed hash for burn request
-    bytes32 public constant BURN_REQUEST_TYPEHASH = 
-        keccak256("BurnRequest(address from,uint256 amount,uint256 nonce,uint256 deadline)");
+    bytes32 public constant BURN_REQUEST_TYPEHASH =
+        keccak256(
+            "BurnRequest(address from,uint256 amount,uint256 nonce,uint256 deadline)"
+        );
 
     /* EVENTS */
 
@@ -61,7 +61,10 @@ contract USDE is
      * @custom:oz-upgrades-unsafe-allow constructor
      */
     constructor(IValidator _validator) {
-        require(address(_validator) != address(0), "Validator cannot be zero address");
+        require(
+            address(_validator) != address(0),
+            "Validator cannot be zero address"
+        );
 
         validator = _validator;
         _disableInitializers();
@@ -94,10 +97,7 @@ contract USDE is
         address from,
         address to,
         uint256 amount
-    )
-        internal
-        override(ERC20Upgradeable, ERC20PausableUpgradeable)
-    {
+    ) internal override(ERC20Upgradeable, ERC20PausableUpgradeable) {
         require(validator.isValid(from, to), "account blocked");
 
         super._update(from, to, amount);
@@ -109,7 +109,10 @@ contract USDE is
      * @param amount Amount of tokens to mint
      * @return bool indicating success
      */
-    function mint(address to, uint256 amount) public onlyRole(MINT_ROLE) returns (bool) {
+    function mint(
+        address to,
+        uint256 amount
+    ) public onlyRole(MINT_ROLE) returns (bool) {
         _mint(to, amount);
 
         return true;
@@ -121,7 +124,10 @@ contract USDE is
      * @param amount Amount of tokens to burn
      * @return bool indicating success
      */
-    function burn(address from, uint256 amount) public onlyRole(INVEST_TOKEN_ROLE) returns (bool) {
+    function burn(
+        address from,
+        uint256 amount
+    ) public onlyRole(INVEST_TOKEN_ROLE) returns (bool) {
         _burn(from, amount);
 
         return true;
@@ -140,40 +146,33 @@ contract USDE is
         uint256 amount,
         uint256 deadline,
         bytes memory signature
-    )
-        public
-        onlyRole(BURN_ROLE)
-        returns (bool)
-    {
+    ) public onlyRole(BURN_ROLE) returns (bool) {
         // Check if deadline has passed
         require(block.timestamp <= deadline, "Signature expired");
-        
+
         // Get current nonce for the address
         uint256 nonce = burnNonces[from];
-        
+
         // Create the struct hash
         bytes32 structHash = keccak256(
-            abi.encode(
-                BURN_REQUEST_TYPEHASH,
-                from,
-                amount,
-                nonce,
-                deadline
-            )
+            abi.encode(BURN_REQUEST_TYPEHASH, from, amount, nonce, deadline)
         );
-        
+
         // Generate the EIP-712 message digest
         bytes32 digest = _hashTypedDataV4(structHash);
-        
+
         // Verify signature
-        require(from.isValidSignatureNow(digest, signature), "Invalid signature");
-        
+        require(
+            from.isValidSignatureNow(digest, signature),
+            "Invalid signature"
+        );
+
         // Increment nonce to prevent replay
         burnNonces[from]++;
-        
+
         // Execute the burn
         _burn(from, amount);
-    
+
         return true;
     }
 
@@ -184,7 +183,11 @@ contract USDE is
      * @param amount Amount of tokens to recover
      * @return bool indicating success
      */
-    function recover(address from, address to, uint256 amount) public onlyRole(RESCUER_ROLE) returns (bool) {
+    function recover(
+        address from,
+        address to,
+        uint256 amount
+    ) public onlyRole(RESCUER_ROLE) returns (bool) {
         _burn(from, amount);
         _mint(to, amount);
 
@@ -210,7 +213,9 @@ contract USDE is
     }
 
     // ERC1967 Proxy
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(UPGRADER_ROLE) {}
 
     uint256[50] private __gap;
 }

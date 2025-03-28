@@ -32,7 +32,11 @@ contract Validator is AccessControl, IValidator {
      * @param _whitelister Address to be granted the WHITELISTER_ROLE.
      * @param _blacklister Address to be granted the BLACKLISTER_ROLE.
      */
-    constructor(address _initialOwner, address _whitelister, address _blacklister) {
+    constructor(
+        address _initialOwner,
+        address _whitelister,
+        address _blacklister
+    ) {
         _grantRole(DEFAULT_ADMIN_ROLE, _initialOwner);
         _grantRole(WHITELISTER_ROLE, _whitelister);
         _grantRole(BLACKLISTER_ROLE, _blacklister);
@@ -59,7 +63,9 @@ contract Validator is AccessControl, IValidator {
      * @dev Adds multiple addresses to the whitelist.
      * @param accounts Array of addresses to add.
      */
-    function whitelist(address[] calldata accounts) external onlyRole(WHITELISTER_ROLE) {
+    function whitelist(
+        address[] calldata accounts
+    ) external onlyRole(WHITELISTER_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
             _whitelist(accounts[i]);
         }
@@ -86,7 +92,9 @@ contract Validator is AccessControl, IValidator {
      * @dev Adds multiple addresses to the blacklist.
      * @param accounts Array of addresses to add.
      */
-    function blacklist(address[] calldata accounts) external onlyRole(BLACKLISTER_ROLE) {
+    function blacklist(
+        address[] calldata accounts
+    ) external onlyRole(BLACKLISTER_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
             _blacklist(accounts[i]);
         }
@@ -113,7 +121,9 @@ contract Validator is AccessControl, IValidator {
      * @dev Removes multiple addresses from both whitelist and blacklist.
      * @param accounts Array of addresses to remove.
      */
-    function void(address[] calldata accounts) external onlyRole(WHITELISTER_ROLE) {
+    function void(
+        address[] calldata accounts
+    ) external onlyRole(WHITELISTER_ROLE) {
         for (uint256 i; i < accounts.length; i++) {
             _void(accounts[i]);
         }
@@ -126,12 +136,15 @@ contract Validator is AccessControl, IValidator {
      * @param to Address receiving tokens.
      * @return valid True if the transfer is valid, false otherwise.
      */
-    function isValid(address from, address to) external view returns (bool valid) {
-        return to == address(0x0)
-            || (
-                accountStatus[to] != Status.BLACKLISTED
-                    && (from == address(0x0) || accountStatus[from] != Status.BLACKLISTED)
-            );
+    function isValid(
+        address from,
+        address to
+    ) external view returns (bool valid) {
+        return
+            to == address(0x0) ||
+            (accountStatus[to] != Status.BLACKLISTED &&
+                (from == address(0x0) ||
+                    accountStatus[from] != Status.BLACKLISTED));
     }
 
     /**
@@ -141,12 +154,15 @@ contract Validator is AccessControl, IValidator {
      * @param to Address receiving tokens.
      * @return valid True if the transfer is valid, false otherwise.
      */
-    function isValidStrict(address from, address to) external view returns (bool valid) {
-        return to == address(0x0)
-            || (
-                accountStatus[to] == Status.WHITELISTED
-                    && (from == address(0x0) || accountStatus[from] == Status.WHITELISTED)
-            );
+    function isValidStrict(
+        address from,
+        address to
+    ) external view returns (bool valid) {
+        return
+            to == address(0x0) ||
+            (accountStatus[to] == Status.WHITELISTED &&
+                (from == address(0x0) ||
+                    accountStatus[from] == Status.WHITELISTED));
     }
 
     /**

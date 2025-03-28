@@ -4,10 +4,8 @@ pragma solidity ^0.8.21;
 
 import {Initializable} from "@openzeppelin/contracts-upgradeable/proxy/utils/Initializable.sol";
 import {ERC20Upgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/ERC20Upgradeable.sol";
-import {ERC20PausableUpgradeable} from
-    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
-import {ERC20PermitUpgradeable} from
-    "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
+import {ERC20PausableUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PausableUpgradeable.sol";
+import {ERC20PermitUpgradeable} from "@openzeppelin/contracts-upgradeable/token/ERC20/extensions/ERC20PermitUpgradeable.sol";
 import {AccessControlUpgradeable} from "@openzeppelin/contracts-upgradeable/access/AccessControlUpgradeable.sol";
 import {UUPSUpgradeable} from "@openzeppelin/contracts-upgradeable/proxy/utils/UUPSUpgradeable.sol";
 import {SignatureChecker} from "@openzeppelin/contracts/utils/cryptography/SignatureChecker.sol";
@@ -53,15 +51,26 @@ contract InvestToken is
     mapping(address => uint256) public burnNonces;
 
     /// @notice Typed hash for burn request
-    bytes32 public constant BURN_REQUEST_TYPEHASH = 
-        keccak256("BurnRequest(address from,uint256 amount,uint256 nonce,uint256 deadline)");
+    bytes32 public constant BURN_REQUEST_TYPEHASH =
+        keccak256(
+            "BurnRequest(address from,uint256 amount,uint256 nonce,uint256 deadline)"
+        );
 
     /* EVENTS */
 
     event Recovered(address indexed from, address indexed to, uint256 amount);
-    event Deposit(address indexed sender, address indexed owner, uint256 assets, uint256 shares);
+    event Deposit(
+        address indexed sender,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
+    );
     event Withdraw(
-        address indexed sender, address indexed receiver, address indexed owner, uint256 assets, uint256 shares
+        address indexed sender,
+        address indexed receiver,
+        address indexed owner,
+        uint256 assets,
+        uint256 shares
     );
 
     /* CONSTRUCTOR */
@@ -73,7 +82,10 @@ contract InvestToken is
      * @custom:oz-upgrades-unsafe-allow constructor
      */
     constructor(IValidator _validator, IUSDE _usde) {
-        require(address(_validator) != address(0), "Validator cannot be zero address");
+        require(
+            address(_validator) != address(0),
+            "Validator cannot be zero address"
+        );
         require(address(_usde) != address(0), "USDE cannot be zero address");
         validator = _validator;
         usde = _usde;
@@ -90,10 +102,7 @@ contract InvestToken is
         string calldata _symbol,
         address _initialOwner,
         IYieldOracle _yieldOracle
-    )
-        public
-        initializer
-    {
+    ) public initializer {
         __ERC20_init(_name, _symbol);
         __ERC20Pausable_init();
         __ERC20Permit_init(_name);
@@ -119,10 +128,7 @@ contract InvestToken is
         address from,
         address to,
         uint256 amount
-    )
-        internal
-        override(ERC20Upgradeable, ERC20PausableUpgradeable)
-    {
+    ) internal override(ERC20Upgradeable, ERC20PausableUpgradeable) {
         require(validator.isValidStrict(from, to), "account blocked");
 
         super._update(from, to, amount);
@@ -134,13 +140,16 @@ contract InvestToken is
      * @param amount Amount of tokens to mint
      * @return bool indicating success
      */
-    function mint(address to, uint256 amount) public onlyRole(MINT_ROLE) returns (bool) {
+    function mint(
+        address to,
+        uint256 amount
+    ) public onlyRole(MINT_ROLE) returns (bool) {
         _mint(to, amount);
 
         return true;
     }
 
-     /**
+    /**
      * @dev Burns tokens with EIP-712 signature verification.
      * @param from Address to burn tokens from
      * @param amount Amount of tokens to burn
@@ -153,40 +162,33 @@ contract InvestToken is
         uint256 amount,
         uint256 deadline,
         bytes memory signature
-    )
-        public
-        onlyRole(BURN_ROLE)
-        returns (bool)
-    {
+    ) public onlyRole(BURN_ROLE) returns (bool) {
         // Check if deadline has passed
         require(block.timestamp <= deadline, "Signature expired");
-        
+
         // Get current nonce for the address
         uint256 nonce = burnNonces[from];
-        
+
         // Create the struct hash
         bytes32 structHash = keccak256(
-            abi.encode(
-                BURN_REQUEST_TYPEHASH,
-                from,
-                amount,
-                nonce,
-                deadline
-            )
+            abi.encode(BURN_REQUEST_TYPEHASH, from, amount, nonce, deadline)
         );
-        
+
         // Generate the EIP-712 message digest
         bytes32 digest = _hashTypedDataV4(structHash);
-        
+
         // Verify signature
-        require(from.isValidSignatureNow(digest, signature), "Invalid signature");
-        
+        require(
+            from.isValidSignatureNow(digest, signature),
+            "Invalid signature"
+        );
+
         // Increment nonce to prevent replay
         burnNonces[from]++;
-        
+
         // Execute the burn
         _burn(from, amount);
-    
+
         return true;
     }
 
@@ -197,7 +199,11 @@ contract InvestToken is
      * @param amount Amount of tokens to recover
      * @return bool indicating success
      */
-    function recover(address from, address to, uint256 amount) public onlyRole(RESCUER_ROLE) returns (bool) {
+    function recover(
+        address from,
+        address to,
+        uint256 amount
+    ) public onlyRole(RESCUER_ROLE) returns (bool) {
         _burn(from, amount);
         _mint(to, amount);
 
@@ -267,7 +273,10 @@ contract InvestToken is
      * @param receiver The address that will receive the shares (EUI).
      * @return shares The number of shares (EUI) received.
      */
-    function deposit(uint256 assets, address receiver) public returns (uint256 shares) {
+    function deposit(
+        uint256 assets,
+        address receiver
+    ) public returns (uint256 shares) {
         require(!validator.isBlacklisted(msg.sender), "caller blacklisted");
 
         shares = convertToShares(assets);
@@ -306,7 +315,11 @@ contract InvestToken is
      * @param owner The address of the account that owns the shares (EUI) being redeemed.
      * @return assets The amount of assets (USDE) that have been received.
      */
-    function redeem(uint256 shares, address receiver, address owner) public returns (uint256 assets) {
+    function redeem(
+        uint256 shares,
+        address receiver,
+        address owner
+    ) public returns (uint256 assets) {
         if (owner != msg.sender) _spendAllowance(owner, msg.sender, shares);
 
         assets = convertToAssets(shares);
@@ -322,8 +335,13 @@ contract InvestToken is
      * @notice Changes the yield oracle. Can only be called by accounts with DEFAULT_ADMIN_ROLE.
      * @param _yieldOracle Address of the new yield oracle
      */
-    function changeYieldOracle(IYieldOracle _yieldOracle) public onlyRole(DEFAULT_ADMIN_ROLE) {
-        require(address(_yieldOracle) != address(0), "YieldOracle cannot be zero address");
+    function changeYieldOracle(
+        IYieldOracle _yieldOracle
+    ) public onlyRole(DEFAULT_ADMIN_ROLE) {
+        require(
+            address(_yieldOracle) != address(0),
+            "YieldOracle cannot be zero address"
+        );
 
         yieldOracle = _yieldOracle;
     }
@@ -347,7 +365,9 @@ contract InvestToken is
     }
 
     // ERC1967 Proxy
-    function _authorizeUpgrade(address newImplementation) internal override onlyRole(UPGRADER_ROLE) {}
+    function _authorizeUpgrade(
+        address newImplementation
+    ) internal override onlyRole(UPGRADER_ROLE) {}
 
     uint256[49] private __gap;
 }
