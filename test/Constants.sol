@@ -14,4 +14,6 @@ contract Constants {
     bytes32 public constant BLOCK_ROLE = keccak256("BLOCK_ROLE");
     bytes32 public constant ALLOW_ROLE = keccak256("ALLOW_ROLE");
     bytes32 public constant ORACLE_ROLE = keccak256("ORACLE_ROLE");
+    bytes32 public constant RESCUER_ROLE = keccak256("RESCUER_ROLE");
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
 }
