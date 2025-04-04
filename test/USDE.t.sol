@@ -10,6 +10,276 @@ import {Constants} from "./Constants.sol";
 import {InvestToken} from "../src/InvestToken.sol";
 import {IValidator} from "../src/Validator.sol";
 import {YieldOracle} from "../src/YieldOracle.sol";
+import {IValidator} from "../src/interfaces/IValidator.sol";
+
+contract USDECoverageTest is Test, IValidator {
+    USDE public usde;
+    
+    // Control variable for the validator response
+    bool private _validatorResponse = true;
+    
+    bytes32 public constant DEFAULT_ADMIN_ROLE = 0x00;
+    bytes32 public constant PAUSER_ROLE = keccak256("PAUSER_ROLE");
+    bytes32 public constant MINT_ROLE = keccak256("MINT_ROLE");
+    bytes32 public constant BURN_ROLE = keccak256("BURN_ROLE");
+    bytes32 public constant RESCUER_ROLE = keccak256("RESCUER_ROLE");
+    bytes32 public constant UPGRADER_ROLE = keccak256("UPGRADER_ROLE");
+    bytes32 public constant INVEST_TOKEN_ROLE = keccak256("INVEST_TOKEN_ROLE");
+    
+    // Burn request typehash
+    bytes32 public constant BURN_REQUEST_TYPEHASH =
+        keccak256(
+            "BurnRequest(address from,uint256 amount,uint256 nonce,uint256 deadline)"
+        );
+    
+    // Validator function implementation - this is the one USDE actually calls
+    function isValid(address, address) external view override returns (bool) {
+        return _validatorResponse;
+    }
+    
+    // Implement with the correct signature from the interface
+    function isValidStrict(address, address) external view override returns (bool) {
+        return true;
+    }
+    
+    function isWhitelisted(address) external view override returns (bool) {
+        return true;
+    }
+    
+    function isBlacklisted(address) external view override returns (bool) {
+        return false;
+    }
+    
+    // Function to control the validator response
+    function setValidatorResponse(bool response) public {
+        _validatorResponse = response;
+    }
+    
+    function setUp() public {
+        // Make the validator always return true
+        _validatorResponse = true;
+        
+        // Deploy USDE implementation and proxy
+        USDE implementation = new USDE(this);
+        ERC1967Proxy usdeProxy = new ERC1967Proxy(
+            address(implementation), 
+            abi.encodeCall(USDE.initialize, (address(this)))
+        );
+        usde = USDE(address(usdeProxy));
+        
+        // Grant necessary roles
+        usde.grantRole(MINT_ROLE, address(this));
+        usde.grantRole(BURN_ROLE, address(this));
+        usde.grantRole(RESCUER_ROLE, address(this));
+        usde.grantRole(UPGRADER_ROLE, address(this));
+        usde.grantRole(PAUSER_ROLE, address(this));
+        usde.grantRole(INVEST_TOKEN_ROLE, address(this));
+    }
+    
+    // Test constructor with zero address validator
+    function testConstructorZeroAddressValidator() public {
+        vm.expectRevert("Validator cannot be zero address");
+        new USDE(IValidator(address(0)));
+    }
+    
+    // Test initialize with zero address owner
+    function testInitializeZeroAddressOwner() public {
+        // Deploy a new implementation
+        USDE implementation = new USDE(this);
+        
+        // Create the initialization data with zero address
+        bytes memory initData = abi.encodeCall(USDE.initialize, (address(0)));
+        
+        // When creating the proxy with zero address initialization, it should revert
+        vm.expectRevert("Owner cannot be zero address");
+        new ERC1967Proxy(address(implementation), initData);
+    }
+    
+    // Test _update with validator rejection
+    function testUpdateValidatorRejects() public {
+        // Mint some tokens to test with
+        usde.mint(address(this), 1000);
+        
+        // Set validator to reject transfers
+        _validatorResponse = false;
+        
+        // Try to transfer tokens, should revert
+        vm.expectRevert("account blocked");
+        usde.transfer(address(1), 100);
+        
+        // Reset validator response for other tests
+        _validatorResponse = true;
+    }
+    
+    // Test burn with signature
+    function testBurnWithSignature(uint8 privateKey, uint256 amount, uint256 deadline) public {
+        vm.assume(privateKey != 0);
+        vm.assume(amount > 0 && amount < 1000000 * 10**18);
+        deadline = bound(deadline, block.timestamp, block.timestamp + 1 days);
+        
+        // Get the address from private key
+        address signer = vm.addr(privateKey);
+        
+        // Mint tokens to the signer
+        usde.mint(signer, amount);
+        
+        // Get the current nonce
+        uint256 nonce = usde.burnNonces(signer);
+        
+        // Create the struct hash
+        bytes32 structHash = keccak256(
+            abi.encode(BURN_REQUEST_TYPEHASH, signer, amount, nonce, deadline)
+        );
+        
+        // Generate the digest
+        bytes32 digest = _hashTypedDataV4(structHash);
+        
+        // Sign the digest
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        
+        // Execute the burn with signature
+        usde.burn(signer, amount, deadline, signature);
+        
+        // Check the balance and nonce
+        assertEq(usde.balanceOf(signer), 0);
+        assertEq(usde.burnNonces(signer), nonce + 1);
+    }
+    
+    // Test burn with expired signature
+    function testBurnWithExpiredSignature(uint8 privateKey, uint256 amount) public {
+        vm.assume(privateKey != 0);
+        vm.assume(amount > 0 && amount < 1000000 * 10**18);
+        
+        // Set a deadline in the past
+        uint256 deadline = block.timestamp - 1;
+        
+        // Get the address from private key
+        address signer = vm.addr(privateKey);
+        
+        // Mint tokens to the signer
+        usde.mint(signer, amount);
+        
+        // Get the current nonce
+        uint256 nonce = usde.burnNonces(signer);
+        
+        // Create the struct hash
+        bytes32 structHash = keccak256(
+            abi.encode(BURN_REQUEST_TYPEHASH, signer, amount, nonce, deadline)
+        );
+        
+        // Generate the digest
+        bytes32 digest = _hashTypedDataV4(structHash);
+        
+        // Sign the digest
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        
+        // Execute the burn with signature, should revert due to expired deadline
+        vm.expectRevert("Signature expired");
+        usde.burn(signer, amount, deadline, signature);
+    }
+    
+    // Test burn with invalid signature
+    function testBurnWithInvalidSignature(uint8 privateKey1, uint8 privateKey2, uint256 amount, uint256 deadline) public {
+        vm.assume(privateKey1 != 0 && privateKey2 != 0);
+        vm.assume(privateKey1 != privateKey2);
+        vm.assume(amount > 0 && amount < 1000000 * 10**18);
+        deadline = bound(deadline, block.timestamp, block.timestamp + 1 days);
+        
+        // Get the addresses from private keys
+        address signer = vm.addr(privateKey1);
+        address wrongSigner = vm.addr(privateKey2);
+        
+        // Mint tokens to the signer
+        usde.mint(signer, amount);
+        
+        // Get the current nonce
+        uint256 nonce = usde.burnNonces(signer);
+        
+        // Create the struct hash
+        bytes32 structHash = keccak256(
+            abi.encode(BURN_REQUEST_TYPEHASH, signer, amount, nonce, deadline)
+        );
+        
+        // Generate the digest
+        bytes32 digest = _hashTypedDataV4(structHash);
+        
+        // Sign the digest with the wrong private key
+        (uint8 v, bytes32 r, bytes32 s) = vm.sign(privateKey2, digest);
+        bytes memory signature = abi.encodePacked(r, s, v);
+        
+        // Execute the burn with signature, should revert due to invalid signature
+        vm.expectRevert("Invalid signature");
+        usde.burn(signer, amount, deadline, signature);
+    }
+    
+    // Test recover functionality
+    function testRecover(address from, address to, uint256 amount) public {
+        vm.assume(from != address(0) && to != address(0));
+        vm.assume(from != to);
+        vm.assume(amount > 0 && amount < 1000000 * 10**18);
+        
+        // Mint tokens to the from address
+        usde.mint(from, amount);
+        
+        // Call recover
+        usde.recover(from, to, amount);
+        
+        // Check balances
+        assertEq(usde.balanceOf(from), 0);
+        assertEq(usde.balanceOf(to), amount);
+    }
+    
+    // Test unauthorized recover
+    function testUnauthorizedRecover(address unauthorized, address from, address to, uint256 amount) public {
+        vm.assume(unauthorized != address(0) && unauthorized != address(this));
+        vm.assume(from != address(0) && to != address(0));
+        vm.assume(from != to);
+        vm.assume(amount > 0 && amount < 1000000 * 10**18);
+        
+        // Mint tokens to the from address
+        usde.mint(from, amount);
+        
+        // Try to recover as unauthorized user
+        vm.prank(unauthorized);
+        vm.expectRevert();
+        usde.recover(from, to, amount);
+    }
+    
+    // Test upgrade authorization
+    function testAuthorizeUpgrade() public {
+        // Deploy a new implementation
+        USDE newImplementation = new USDE(this);
+        
+        // Try to upgrade as an authorized upgrader
+        vm.recordLogs();
+        usde.upgradeToAndCall(address(newImplementation), "");
+        
+        // Verify the upgrade event was emitted
+        vm.getRecordedLogs();
+        // The actual verification is that no revert occurred
+    }
+    
+    // Test unauthorized upgrade
+    function testUnauthorizedUpgrade(address unauthorized) public {
+        vm.assume(unauthorized != address(0) && unauthorized != address(this));
+        
+        // Deploy a new implementation
+        USDE newImplementation = new USDE(this);
+        
+        // Try to upgrade as an unauthorized user
+        vm.prank(unauthorized);
+        vm.expectRevert();
+        usde.upgradeToAndCall(address(newImplementation), "");
+    }
+    
+    // Helper function to hash typed data (similar to the contract's internal function)
+    function _hashTypedDataV4(bytes32 structHash) internal view returns (bytes32) {
+        bytes32 DOMAIN_SEPARATOR = usde.DOMAIN_SEPARATOR();
+        return keccak256(abi.encodePacked("\x19\x01", DOMAIN_SEPARATOR, structHash));
+    }
+}
 
 contract USDETest is Test, Constants {
     USDE public usde;
