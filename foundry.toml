@@ -5,6 +5,7 @@ libs = ["lib"]
 fuzz.runs = 500
 evm_version = "shanghai"
 ast = true
+fs_permissions = [{ access = "read", path = "./blacklist.json" }]
 
 [rpc_endpoints]
 holesky = "${HOLESKY_RPC_URL}"
