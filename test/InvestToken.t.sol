@@ -42,7 +42,7 @@ contract MaliciousValidator is IValidator {
         return false;
     }
     
-    function isBlacklisted(address account) external pure returns (bool) {
+    function isBlacklisted(address) external pure returns (bool) {
         return true; // Always returns blacklisted
     }
 }
@@ -765,6 +765,7 @@ contract InvestTokenCoverageTest is Test, Constants {
         // Creating a proxy with zero address yield oracle should not revert
         // since the YieldOracle validation is not present in the initialize function
         ERC1967Proxy newProxy = new ERC1967Proxy(address(newImplementation), initData);
+        newProxy;
     }
     
     // Test initialize with zero address for owner

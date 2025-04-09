@@ -38,15 +38,15 @@ contract USDECoverageTest is Test, IValidator {
     }
     
     // Implement with the correct signature from the interface
-    function isValidStrict(address, address) external view override returns (bool) {
+    function isValidStrict(address, address) external pure returns (bool) {
         return true;
     }
     
-    function isWhitelisted(address) external view override returns (bool) {
+    function isWhitelisted(address) external pure  returns (bool) {
         return true;
     }
     
-    function isBlacklisted(address) external view override returns (bool) {
+    function isBlacklisted(address) external pure  returns (bool) {
         return false;
     }
     
@@ -189,7 +189,7 @@ contract USDECoverageTest is Test, IValidator {
         
         // Get the addresses from private keys
         address signer = vm.addr(privateKey1);
-        address wrongSigner = vm.addr(privateKey2);
+        //address wrongSigner = vm.addr(privateKey2);
         
         // Mint tokens to the signer
         usde.mint(signer, amount);
@@ -287,7 +287,7 @@ contract USDETest is Test, Constants {
     bytes32 constant PERMIT_TYPEHASH =
         keccak256("Permit(address owner,address spender,uint256 value,uint256 nonce,uint256 deadline)");
 
-    function isValid(address from, address to) external view returns (bool) {
+    function isValid(address, address) external pure returns (bool) {
         // For testing purposes, accept all addresses as valid, including zero address
         return true;
     }
@@ -306,7 +306,7 @@ contract USDETest is Test, Constants {
         usde.grantRole(ALLOW_ROLE, address(this));
     }
 
-    function testInitialize() public {
+    function testInitialize() public view {
         assertTrue(usde.hasRole(0x00, address(this)));
         assertEq(usde.symbol(), "USDE");
         assertEq(usde.name(), "EuroDollar");
@@ -563,7 +563,7 @@ contract USDETest is Test, Constants {
 contract BalanceOf is Test {
     USDE usde;
 
-    function isValid(address from, address to) external view returns (bool) {
+    function isValid(address, address) external pure returns (bool) {
         // For testing purposes, accept all addresses as valid, including zero address
         return true;
     }
@@ -595,7 +595,7 @@ contract BalanceOf is Test {
 contract Paused is Test {
     USDE usde;
 
-        function isValid(address from, address to) external view returns (bool) {
+        function isValid(address, address) external pure returns (bool) {
         // For testing purposes, accept all addresses as valid, including zero address
         return true;
     }
@@ -614,7 +614,7 @@ contract Paused is Test {
         usde.pause();
     }
 
-    function invariant_paused() public {
+    function invariant_paused() public view {
         assertTrue(usde.paused(), "USDE should be paused");
     }
 
