@@ -9,9 +9,11 @@ fs_permissions = [{ access = "read", path = "./blacklist.json" }]
 
 [rpc_endpoints]
 holesky = "${HOLESKY_RPC_URL}"
+bnbtest = "${BNB_TESTNET_RPC_URL}"
 
 [etherscan]
 holesky = { key = "${ETHERSCAN_API_KEY}" }
+bnbtest = { key = "${BSCSCAN_API_KEY}" }
 
 [fmt]
 multiline_func_header = "all"
