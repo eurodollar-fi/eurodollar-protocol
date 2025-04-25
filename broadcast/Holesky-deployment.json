@@ -1,0 +1,17 @@
+{
+    "network": "Holesky",
+    "deployer": "0xad4707aec9b7a48d21e5915bfa878032cea8737c",
+    "deploymentTime": 1745586804,
+    "contracts": {
+        "validator": "0x92e66116feb6a2a5f5f33b23015b14ee023c6590",
+        "usde": {
+            "proxy": "0x5573ddb93f67280148882576ecb251840a52d0d1",
+            "implementation": "0x48d91db8b0ff0240964e2d67c72682e3552aa536"
+        },
+        "yieldOracle": "0xad05469a7dd8a0d2896f771fce53ace40695646c",
+        "investToken": {
+            "proxy": "0x7519a01de9a9a9be4bc89b3ba40062f6f2ef905c",
+            "implementation": "0x337e20d853904eea17009e22502f9cc79f5eecf6"
+        }
+    }
+}

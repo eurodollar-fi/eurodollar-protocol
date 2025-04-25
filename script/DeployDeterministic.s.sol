@@ -6,6 +6,7 @@ pragma solidity ^0.8.21;
 import "forge-std/StdUtils.sol";
 import {Script} from "forge-std/Script.sol";
 import {console} from "forge-std/console.sol";
+import {Strings} from "@openzeppelin/contracts/utils/Strings.sol";
 
 import {ERC1967Proxy} from "@openzeppelin/contracts/proxy/ERC1967/ERC1967Proxy.sol";
 
@@ -19,34 +20,97 @@ import {YieldOracle} from "../src/YieldOracle.sol";
 import {InvestToken} from "../src/InvestToken.sol";
 
 contract Deploy is Script {
+    using Strings for uint256;
+    using Strings for address;
+
     // CREATE2 salts - can be any value, but must be consistent for deterministic deployments
-    bytes32 constant VALIDATOR_SALT = bytes32(uint256(1));
-    bytes32 constant USDE_IMPLEMENTATION_SALT = bytes32(uint256(2));
-    bytes32 constant USDE_PROXY_SALT = bytes32(uint256(3));
-    bytes32 constant ORACLE_SALT = bytes32(uint256(4));
-    bytes32 constant INVEST_IMPLEMENTATION_SALT = bytes32(uint256(5));
-    bytes32 constant INVEST_PROXY_SALT = bytes32(uint256(6));
+    bytes32 constant VALIDATOR_SALT = bytes32(uint256(6));
+    bytes32 constant USDE_IMPLEMENTATION_SALT = bytes32(uint256(7));
+    bytes32 constant USDE_PROXY_SALT = bytes32(uint256(8));
+    bytes32 constant ORACLE_SALT = bytes32(uint256(9));
+    bytes32 constant INVEST_IMPLEMENTATION_SALT = bytes32(uint256(10));
+    bytes32 constant INVEST_PROXY_SALT = bytes32(uint256(11));
 
     function run() external {
         vm.startBroadcast(vm.envUint("PRIVATE_KEY"));
         address deployer = vm.addr(vm.envUint("PRIVATE_KEY"));
+        
+        // Get current network name
+        string memory network = vm.envOr("NETWORK", string("development"));
 
         console.log("Deployer address: ", deployer);
 
+        // Deploy Validator
         IValidator validator = deployValidator(deployer, deployer, deployer);
         console.log("Deployed Validator: ", address(validator));
 
+        // Deploy USDE
         IUSDE usde = deployUSDE(validator, deployer);
         console.log("Deployed USDE: ", address(usde));
+        address usdeImpl = computePredictedAddress(USDE_IMPLEMENTATION_SALT);
+        console.log("USDE implementation: ", usdeImpl);
 
+        // Deploy YieldOracle
         IYieldOracle yieldOracle = deployYieldOracle(deployer, deployer);
         console.log("Deployed YieldOracle: ", address(yieldOracle));
 
+        // Deploy InvestToken
         address investToken =
             deployInvestToken(validator, usde, "Eurodollar Invest Token", "EUI", deployer, yieldOracle);
         console.log("Deployed InvestToken EUI: ", investToken);
+        address investImpl = computePredictedAddress(INVEST_IMPLEMENTATION_SALT);
+        console.log("InvestToken implementation: ", investImpl);
+
+        // Build a simple JSON string directly
+        string memory json = string(abi.encodePacked(
+            '{',
+            '"network":"', network, '",',
+            '"deployer":"', deployer.toHexString(), '",',
+            '"deploymentTime":', uint256(block.timestamp).toString(), ',',
+            '"contracts":{',
+                '"validator":"', address(validator).toHexString(), '",',
+                '"usde":{',
+                    '"proxy":"', address(usde).toHexString(), '",',
+                    '"implementation":"', usdeImpl.toHexString(), '"',
+                '},',
+                '"yieldOracle":"', address(yieldOracle).toHexString(), '",',
+                '"investToken":{',
+                    '"proxy":"', investToken.toHexString(), '",',
+                    '"implementation":"', investImpl.toHexString(), '"',
+                '}',
+            '}',
+            '}'
+        ));
+
+        string memory deploymentFileName = string.concat("./broadcast/", network, "-deployment.json");
+        vm.writeFile(deploymentFileName, json);
+        console.log("Deployment information saved to:", deploymentFileName);
 
         vm.stopBroadcast();
+    }
+    
+    function computePredictedAddress(bytes32 salt) internal view returns (address) {
+        bytes32 bytecodeHash;
+        
+        if (salt == USDE_IMPLEMENTATION_SALT) {
+            bytecodeHash = keccak256(
+                abi.encodePacked(
+                    type(USDE).creationCode,
+                    abi.encode(IValidator(address(0)))
+                )
+            );
+        } else if (salt == INVEST_IMPLEMENTATION_SALT) {
+            bytecodeHash = keccak256(
+                abi.encodePacked(
+                    type(InvestToken).creationCode,
+                    abi.encode(IValidator(address(0)), IUSDE(address(0)))
+                )
+            );
+        } else {
+            return address(0);
+        }
+        
+        return vm.computeCreate2Address(salt, bytecodeHash);
     }
 
     function deployWithCreate2(bytes memory creationCode, bytes32 salt) internal returns (address deployed) {
