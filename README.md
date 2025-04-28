@@ -79,19 +79,108 @@ forge install
 forge build
 ```
 
-### Deployment
+## Deployment Options
 
-1. Copy `.env.example` to `.env` and set your private key.
+The project includes three deployment scripts for different use cases:
 
-2. Check `script/Deploy.s.sol` if you want to modify parameters.
+1. **Standard Deployment** (`Deploy.s.sol`) - Simple deployment without address predictability
+2. **Deterministic Deployment** (`DeployDeterministic.s.sol`) - CREATE2-based deployment for deterministic addresses
+3. **Blacklist Loader** (`BlacklistLoader.sol`) - Utility to populate the blacklist from a JSON file
 
-3. Run deployment script. For example, testing locally (anvil environment):
-```bash
-forge script script/Deploy.s.sol
-    --fork-url http://localhost:8545
-    --broadcast
+### Environment Setup
+
+Copy `.env.example` to `.env` and configure the following variables:
+
 ```
-Or deploy Onchain:
+PRIVATE_KEY=0x          # Your deployment private key
+HOLESKY_RPC_URL=        # Holesky testnet RPC endpoint
+BNB_TESTNET_RPC_URL=    # BNB testnet RPC endpoint  
+ETHERSCAN_API_KEY=      # Etherscan API key for verification
+BSCSCAN_API_KEY=        # BSCScan API key for verification
+VALIDATOR_ADDRESS=0x    # Validator contract address (for blacklist loader)
+NETWORK=                # Network name (for deterministic deployment)
+```
+
+### 1. Standard Deployment
+
+Use this method for standard deployments without address predictability. This is simpler and uses less gas.
+
 ```bash
+# Local deployment
+forge script script/Deploy.s.sol --fork-url http://localhost:8545 --broadcast
+
+# Testnet deployment (Holesky)
+forge script script/Deploy.s.sol --rpc-url holesky --broadcast
+
+# Testnet deployment with verification
 forge script script/Deploy.s.sol --rpc-url holesky --broadcast --verify
 ```
+
+### 2. Deterministic Deployment
+
+Use this method when you need predictable contract addresses across different networks. This is useful for cross-chain deployments or when you need to know contract addresses in advance.
+
+```bash
+# Set network name in .env
+NETWORK=holesky
+
+# Local deployment
+forge script script/DeployDeterministic.s.sol --fork-url http://localhost:8545 --broadcast
+
+# Testnet deployment (Holesky)
+forge script script/DeployDeterministic.s.sol --rpc-url holesky --broadcast
+
+# Testnet deployment with verification
+forge script script/DeployDeterministic.s.sol --rpc-url holesky --broadcast --verify
+```
+
+The deterministic deployment will save the contract addresses to a JSON file at `./broadcast/{network}-deployment.json` for future reference.
+
+Example output file:
+```json
+{
+  "network": "holesky",
+  "deployer": "0x123...",
+  "deploymentTime": 1712345678,
+  "contracts": {
+    "validator": "0x456...",
+    "usde": {
+      "proxy": "0x789...",
+      "implementation": "0xabc..."
+    },
+    "yieldOracle": "0xdef...",
+    "investToken": {
+      "proxy": "0xfed...",
+      "implementation": "0xcba..."
+    }
+  }
+}
+```
+
+### 3. Blacklist Loader
+
+After deploying the Validator contract, you can populate it with blacklisted addresses from a JSON file.
+
+1. First, create a `blacklist.json` file in the project root with an array of addresses:
+
+```json
+[
+  "0x1111111111111111111111111111111111111111",
+  "0x2222222222222222222222222222222222222222",
+  "0x3333333333333333333333333333333333333333"
+]
+```
+
+2. Set the `VALIDATOR_ADDRESS` in your `.env` file to the deployed Validator contract address.
+
+3. Run the blacklist loader:
+
+```bash
+# Local
+forge script script/BlacklistLoader.s.sol --fork-url http://localhost:8545 --broadcast
+
+# Testnet (Holesky)
+forge script script/BlacklistLoader.s.sol --rpc-url holesky --broadcast
+```
+
+The script will process addresses in batches of 100 to avoid gas limits.
