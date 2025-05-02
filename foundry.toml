@@ -8,10 +8,12 @@ ast = true
 fs_permissions = [{ access = "read", path = "./blacklist.json" },{ access = "write", path = "./broadcast/" }]
 
 [rpc_endpoints]
+mainnet = "${MAINNET_RPC_URL}"
 holesky = "${HOLESKY_RPC_URL}"
 bnbtest = "${BNB_TESTNET_RPC_URL}"
 
 [etherscan]
+mainnet = { key = "${ETHERSCAN_API_KEY}" }
 holesky = { key = "${ETHERSCAN_API_KEY}" }
 bnbtest = { key = "${BSCSCAN_API_KEY}" }
 
