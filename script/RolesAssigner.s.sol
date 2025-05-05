@@ -76,7 +76,6 @@ contract RolesAssignment is Script {
         // -----------------------------------------------------------------------------
         RoleRecipients memory recipients = RoleRecipients({
             // USDE roles
-            usdeAdmin: deployer,            // Admin for USDE
             usdePauser: deployer,           // Can pause USDE
             usdeMinter: deployer,           // Can mint USDE
             usdeBurner: deployer,           // Can burn USDE
@@ -84,7 +83,6 @@ contract RolesAssignment is Script {
             usdeUpgrader: deployer,         // Can upgrade USDE contract
             
             // InvestToken roles
-            investAdmin: deployer,          // Admin for InvestToken
             investPauser: deployer,         // Can pause InvestToken
             investMinter: deployer,         // Can mint InvestToken
             investBurner: deployer,         // Can burn InvestToken
